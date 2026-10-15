@@ -9,8 +9,6 @@ public class InventoryBalance : BaseEntity
 
     public decimal Available => OnHand - Reserved;
 
-    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
-
     public Guid ProductId { get; set; }
     public Product Product { get; set; } = null!;
 

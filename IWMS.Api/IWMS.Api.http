@@ -1,0 +1,6 @@
+@IWMS.Api_HostAddress = http://localhost:5071
+
+GET {{IWMS.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
