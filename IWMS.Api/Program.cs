@@ -1,11 +1,15 @@
 using IWMS.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using IWMS.Infrastructure.Seeding;
+using IWMS.Application;
+using IWMS.Application.Receiving;
 var builder = WebApplication.CreateBuilder(args);
 
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+builder.Services.AddScoped<GoodsReceivingService>();
 
 
 // Add services to the container.

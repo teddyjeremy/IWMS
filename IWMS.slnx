@@ -2,4 +2,5 @@
   <Project Path="IWMS.Api/IWMS.Api.csproj" />
   <Project Path="IWMS.Domain/IWMS.Domain.csproj" />
   <Project Path="IWMS.Infrastructure/IWMS.Infrastructure.csproj" />
+  <Project Path="IWMS.Tests/IWMS.Tests.csproj" />
 </Solution>

@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\IWMS.Domain\IWMS.Domain.csproj" />
+    <ProjectReference Include="..\IWMS.Application\IWMS.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
