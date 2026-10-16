@@ -88,5 +88,6 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<PurchaseOrder>().HasIndex(o => o.OrderNumber).IsUnique();
         modelBuilder.Entity<SalesOrder>().HasIndex(o => o.OrderNumber).IsUnique();
         modelBuilder.Entity<GoodsReceipt>().HasIndex(r => r.IdempotencyKey).IsUnique();
+        modelBuilder.Entity<InventoryMovement>().HasIndex(m => new { m.IdempotencyKey, m.Type }).IsUnique();
     }
 }

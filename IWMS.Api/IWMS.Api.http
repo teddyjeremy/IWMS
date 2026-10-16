@@ -1,6 +1,112 @@
-@IWMS.Api_HostAddress = http://localhost:5071
+@baseUrl = https://localhost:5071
 
-GET {{IWMS.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Health check
+GET {{baseUrl}}/health
 
-###
+### Users (copy the operator's Id)
+GET {{baseUrl}}/api/users
+
+### Warehouses and locations (copy the Id of A-01 and B-01)
+GET {{baseUrl}}/api/warehouses
+
+### Products (search is optional; copy the hammer's Id)
+GET {{baseUrl}}/api/products?search=ham
+
+### Purchase orders (copy the Id of PO-0001)
+GET {{baseUrl}}/api/purchase-orders
+
+### Purchase order detail (copy the line Id)
+GET {{baseUrl}}/api/purchase-orders/PASTE-PO-ID
+
+### Receive 60 of 100 (first delivery)
+POST {{baseUrl}}/api/receipts
+Content-Type: application/json
+
+{
+  "purchaseOrderId": "PASTE-PO-ID",
+  "receivedByUserId": "PASTE-OPERATOR-USER-ID",
+  "idempotencyKey": "aaaaaaaa-0000-0000-0000-000000000001",
+  "allowOverReceipt": false,
+  "notes": "First delivery",
+  "lines": [
+    {
+      "purchaseOrderLineId": "PASTE-LINE-ID",
+      "storageLocationId": "PASTE-LOCATION-A01-ID",
+      "quantityAccepted": 60,
+      "quantityRejected": 0,
+      "discrepancyNote": ""
+    }
+  ]
+}
+
+### Receive the remaining 40 (new idempotency key)
+POST {{baseUrl}}/api/receipts
+Content-Type: application/json
+
+{
+  "purchaseOrderId": "PASTE-PO-ID",
+  "receivedByUserId": "PASTE-OPERATOR-USER-ID",
+  "idempotencyKey": "aaaaaaaa-0000-0000-0000-000000000002",
+  "allowOverReceipt": false,
+  "notes": "Second delivery",
+  "lines": [
+    {
+      "purchaseOrderLineId": "PASTE-LINE-ID",
+      "storageLocationId": "PASTE-LOCATION-A01-ID",
+      "quantityAccepted": 40,
+      "quantityRejected": 0,
+      "discrepancyNote": ""
+    }
+  ]
+}
+
+### Issue 25 units
+POST {{baseUrl}}/api/stock/issue
+Content-Type: application/json
+
+{
+  "productId": "PASTE-PRODUCT-ID",
+  "storageLocationId": "PASTE-LOCATION-A01-ID",
+  "quantity": 25,
+  "performedByUserId": "PASTE-OPERATOR-USER-ID",
+  "idempotencyKey": "bbbbbbbb-0000-0000-0000-000000000001",
+  "referenceNumber": "SO-DEMO-1",
+  "reason": "Manual issue"
+}
+
+### Adjust: decrease by 2 (a reason is required)
+POST {{baseUrl}}/api/stock/adjust
+Content-Type: application/json
+
+{
+  "productId": "PASTE-PRODUCT-ID",
+  "storageLocationId": "PASTE-LOCATION-A01-ID",
+  "quantity": 2,
+  "isIncrease": false,
+  "reason": "Damaged during handling",
+  "performedByUserId": "PASTE-OPERATOR-USER-ID",
+  "idempotencyKey": "cccccccc-0000-0000-0000-000000000001"
+}
+
+### Transfer 10 from A-01 to B-01
+POST {{baseUrl}}/api/stock/transfer
+Content-Type: application/json
+
+{
+  "productId": "PASTE-PRODUCT-ID",
+  "fromStorageLocationId": "PASTE-LOCATION-A01-ID",
+  "toStorageLocationId": "PASTE-LOCATION-B01-ID",
+  "quantity": 10,
+  "reason": "Rebalancing",
+  "performedByUserId": "PASTE-OPERATOR-USER-ID",
+  "idempotencyKey": "dddddddd-0000-0000-0000-000000000001"
+}
+
+### Movement history (newest first)
+GET {{baseUrl}}/api/movements?pageSize=25
+
+### Product detail with stock by location
+GET {{baseUrl}}/api/products/PASTE-PRODUCT-ID
+
+### Ledger vs balance check (an empty list [] means consistent)
+GET {{baseUrl}}/api/stock/reconciliation

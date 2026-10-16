@@ -21,7 +21,9 @@ public class InventoryBalance : BaseEntity
     decimal quantity,
     Guid performedByUserId,
     string reason,
-    string referenceNumber)
+    string referenceNumber,
+    Guid? idempotencyKey = null
+        )
     {
         if (quantity <= 0)
             throw new DomainException("Quantity must be greater than zero.");
@@ -55,6 +57,7 @@ public class InventoryBalance : BaseEntity
             QuantityAfter = OnHand,
             Reason = reason,
             ReferenceNumber = referenceNumber,
+            IdempotencyKey = idempotencyKey,
             ProductId = ProductId,
             StorageLocationId = StorageLocationId,
             PerformedByUserId = performedByUserId

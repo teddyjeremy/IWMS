@@ -292,6 +292,9 @@ namespace IWMS.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("PerformedByUserId")
                         .HasColumnType("uuid");
 
@@ -344,6 +347,9 @@ namespace IWMS.Infrastructure.Migrations
 
                     b.HasIndex("StorageLocationId");
 
+                    b.HasIndex("IdempotencyKey", "Type")
+                        .IsUnique();
+
                     b.ToTable("InventoryMovements");
                 });
 
@@ -353,7 +359,7 @@ namespace IWMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("BarCode")
+                    b.Property<string>("Barcode")
                         .HasColumnType("text");
 
                     b.Property<int>("BaseUnit")

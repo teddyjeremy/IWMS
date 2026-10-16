@@ -2,6 +2,7 @@
 using IWMS.Domain.Entities;
 using IWMS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using IWMS.Application.Common;
 
 namespace IWMS.Application.Receiving;
 
@@ -74,8 +75,7 @@ public class GoodsReceivingService
 
             if (line.QuantityAccepted > 0)
             {
-                var balance = await GetOrCreateBalanceAsync(
-                    orderLine.ProductId, line.StorageLocationId, ct);
+                var balance = await _db.GetOrCreateBalanceAsync(orderLine.ProductId, line.StorageLocationId, ct);
 
                 var movement = balance.Post(
                     MovementType.Receipt,

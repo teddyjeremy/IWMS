@@ -21,20 +21,36 @@ public static class DataSeeder
             await db.SaveChangesAsync();
         }
 
-        if (!await db.Users.AnyAsync())
+        var demoUsers = new[]
+{
+            (First: "System", Last: "Administrator", Email: "admin@iwms.local", Role: "Administrator"),
+            (First: "Mary", Last: "Manager", Email: "manager@iwms.local", Role: "Warehouse Manager"),
+            (First: "Paul", Last: "Purchaser", Email: "purchaser@iwms.local", Role: "Purchaser"),
+            (First: "Olivia", Last: "Operator", Email: "operator@iwms.local", Role: "Warehouse Operator"),
+            (First: "Sam", Last: "Sales", Email: "sales@iwms.local", Role: "Sales Officer"),
+            (First: "Vera", Last: "Viewer", Email: "viewer@iwms.local", Role: "Viewer")
+        };
+
+        var roles = await db.Roles.ToDictionaryAsync(r => r.Name);
+        var hasher = new PasswordHasher<User>();
+
+        foreach (var demo in demoUsers)
         {
-            var adminRole = await db.Roles.SingleAsync(r => r.Name == "Administrator");
-            var admin = new User
+            if (await db.Users.AnyAsync(u => u.Email == demo.Email))
+                continue;
+
+            var user = new User
             {
-                FirstName = "System",
-                LastName = "Administrator",
-                Email = "admin@iwms.local",
-                Roles = { adminRole }
+                FirstName = demo.First,
+                LastName = demo.Last,
+                Email = demo.Email,
+                Roles = { roles[demo.Role] }
             };
-            admin.PasswordHash = new PasswordHasher<User>().HashPassword(admin, adminPassword);
-            db.Users.Add(admin);
-            await db.SaveChangesAsync();
+            user.PasswordHash = hasher.HashPassword(user, adminPassword);
+            db.Users.Add(user);
         }
+
+        await db.SaveChangesAsync();
 
         if (!await db.Products.AnyAsync())
         {
@@ -88,6 +104,36 @@ public static class DataSeeder
                     new StorageLocation { Code = "A-01", Description = "Aisle A, rack 1" },
                     new StorageLocation { Code = "A-02", Description = "Aisle A, rack 2" },
                     new StorageLocation { Code = "B-01", Description = "Aisle B, rack 1" }
+                }
+            });
+
+            await db.SaveChangesAsync();
+        }
+        if (!await db.PurchaseOrders.AnyAsync())
+        {
+            var supplier = await db.Suppliers.FirstAsync();
+            var hammer = await db.Products.SingleAsync(p => p.Sku == "HAM-001");
+            var purchaser = await db.Users.SingleAsync(u => u.Email == "purchaser@iwms.local");
+            var manager = await db.Users.SingleAsync(u => u.Email == "manager@iwms.local");
+
+            db.PurchaseOrders.Add(new PurchaseOrder
+            {
+                OrderNumber = "PO-0001",
+                Status = PurchaseOrderStatus.Approved,
+                Notes = "Demo order for the receiving walkthrough.",
+                ExpectedDeliveryUtc = DateTime.UtcNow.AddDays(7),
+                ApprovedAtUtc = DateTime.UtcNow,
+                Supplier = supplier,
+                CreatedByUser = purchaser,
+                ApprovedByUser = manager,
+                Lines =
+                {
+                    new PurchaseOrderLine
+                    {
+                        Product = hammer,
+                        QuantityOrdered = 100,
+                        ExpectedUnitPrice = 8.50m
+                    }
                 }
             });
 
