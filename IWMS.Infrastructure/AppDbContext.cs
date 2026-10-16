@@ -38,6 +38,19 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<ReturnRecordLine> ReturnRecordLines => Set<ReturnRecordLine>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
+    public void SetOriginalVersion<TEntity>(TEntity entity, uint version) where TEntity : BaseEntity
+    {
+
+        Entry(entity).Property(nameof(BaseEntity.Version)).OriginalValue = version;
+
+    }
+    public async Task<long> NextPurchaseOrderNumberAsync(CancellationToken cancellationToken = default)
+    {
+        return await Database
+            .SqlQueryRaw<long>("SELECT nextval('purchase_order_number_seq') AS \"Value\"")
+            .SingleAsync(cancellationToken);
+    }
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties<decimal>().HavePrecision(18, 4);
@@ -89,5 +102,10 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<SalesOrder>().HasIndex(o => o.OrderNumber).IsUnique();
         modelBuilder.Entity<GoodsReceipt>().HasIndex(r => r.IdempotencyKey).IsUnique();
         modelBuilder.Entity<InventoryMovement>().HasIndex(m => new { m.IdempotencyKey, m.Type }).IsUnique();
+        modelBuilder.HasSequence<long>("purchase_order_number_seq");
+
+        modelBuilder.Entity<InventoryMovement>().HasIndex(m => m.ReversesMovementId).IsUnique();
+
+        modelBuilder.Entity<Supplier>().HasIndex(s => s.Name).IsUnique();
     }
 }

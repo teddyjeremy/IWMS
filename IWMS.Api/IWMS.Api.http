@@ -1,4 +1,35 @@
 @baseUrl = https://localhost:5071
+### Sign in as the warehouse operator
+# @name loginOperator
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "operator@iwms.local", "password": "Gzdwa2$2002" }
+
+### Sign in as the warehouse manager
+# @name loginManager
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "manager@iwms.local", "password": "Gzdwa2$2002" }
+
+### Sign in as the administrator
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "admin@iwms.local", "password": "Gzdwa2$2002" }
+
+### Sign in as the viewer
+# @name loginViewer
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "viewer@iwms.local", "password": "Gzdwa2$2002" }
+
+### Who am I?
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{loginOperator.response.body.$.token}}
 
 ### Health check
 GET {{baseUrl}}/health
@@ -110,3 +141,75 @@ GET {{baseUrl}}/api/products/PASTE-PRODUCT-ID
 
 ### Ledger vs balance check (an empty list [] means consistent)
 GET {{baseUrl}}/api/stock/reconciliation
+
+### Sign in as the purchaser
+# @name loginPurchaser
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "purchaser@iwms.local", "password": "YOUR-DEMO-PASSWORD" }
+
+### Suppliers
+GET {{baseUrl}}/api/suppliers
+Authorization: Bearer {{loginPurchaser.response.body.$.token}}
+
+### Create a purchase order (use ids from products and suppliers)
+POST {{baseUrl}}/api/purchase-orders
+Content-Type: application/json
+Authorization: Bearer {{loginPurchaser.response.body.$.token}}
+
+{
+  "supplierId": "PASTE-SUPPLIER-ID",
+  "expectedDeliveryUtc": "2026-11-15T00:00:00Z",
+  "notes": "Restock hammers and screws",
+  "lines": [
+    { "productId": "PASTE-HAMMER-PRODUCT-ID", "quantity": 50, "expectedUnitPrice": 8.5 },
+    { "productId": "PASTE-SCREWS-PRODUCT-ID", "quantity": 200, "expectedUnitPrice": 3.2 }
+  ],
+  "version": 0
+}
+
+### Submit it
+POST {{baseUrl}}/api/purchase-orders/PASTE-NEW-ORDER-ID/submit
+Authorization: Bearer {{loginPurchaser.response.body.$.token}}
+
+### Try to approve as the purchaser (expect 403)
+POST {{baseUrl}}/api/purchase-orders/PASTE-NEW-ORDER-ID/approve
+Authorization: Bearer {{loginPurchaser.response.body.$.token}}
+
+### Approve as the manager
+POST {{baseUrl}}/api/purchase-orders/PASTE-NEW-ORDER-ID/approve
+Authorization: Bearer {{loginManager.response.body.$.token}}
+
+### Reject instead (with a reason), as the manager
+POST {{baseUrl}}/api/purchase-orders/PASTE-NEW-ORDER-ID/reject
+Content-Type: application/json
+Authorization: Bearer {{loginManager.response.body.$.token}}
+
+{ "reason": "Price is above the agreed supplier rate" }
+
+### Order detail with approval history
+GET {{baseUrl}}/api/purchase-orders/PASTE-NEW-ORDER-ID
+Authorization: Bearer {{loginPurchaser.response.body.$.token}}
+
+### Approval inbox
+GET {{baseUrl}}/api/purchase-orders?status=Submitted
+Authorization: Bearer {{loginManager.response.body.$.token}}
+
+### Receipts with discrepancies
+GET {{baseUrl}}/api/receipts?hasDiscrepancy=true
+Authorization: Bearer {{loginOperator.response.body.$.token}}
+
+### Reverse a receipt (manager)
+POST {{baseUrl}}/api/receipts/PASTE-RECEIPT-ID/reverse
+Content-Type: application/json
+Authorization: Bearer {{loginManager.response.body.$.token}}
+
+{ "reason": "Delivered to the wrong warehouse" }
+
+### Reverse a single movement, for example an adjustment (manager)
+POST {{baseUrl}}/api/movements/PASTE-MOVEMENT-ID/reverse
+Content-Type: application/json
+Authorization: Bearer {{loginManager.response.body.$.token}}
+
+{ "reason": "Adjustment entered against the wrong product" }

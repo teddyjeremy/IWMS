@@ -12,7 +12,7 @@ public class InventoryMovement : BaseEntity
     public string Reason { get; init; } = string.Empty;
     public string ReferenceNumber { get; init; } = string.Empty;
     public Guid? IdempotencyKey { get; init; }
-
+    public Guid? SourceLineId { get; init; }
     public Guid? ReversesMovementId { get; init; }
 
     public Guid ProductId { get; init; }

@@ -1,6 +1,9 @@
 ﻿using IWMS.Api.Dtos;
+using IWMS.Api.Security;
 using IWMS.Application;
+using IWMS.Application.Ledger;
 using IWMS.Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,13 +11,16 @@ namespace IWMS.Api.Controllers;
 
 [ApiController]
 [Route("api/movements")]
+[Authorize(Policy = Policies.ViewData)]
 public class MovementsController : ControllerBase
 {
     private readonly IAppDbContext _db;
+    private readonly StockReversalService _reversal;
 
-    public MovementsController(IAppDbContext db)
+    public MovementsController(IAppDbContext db, StockReversalService reversal)
     {
         _db = db;
+        _reversal = reversal;
     }
 
     [HttpGet]
@@ -68,6 +74,15 @@ public class MovementsController : ControllerBase
                 m.PerformedByUser.FirstName + " " + m.PerformedByUser.LastName))
             .ToPagedAsync(page, pageSize, ct);
 
+        return Ok(result);
+    }
+
+    [Authorize(Policy = Policies.ReverseMovements)]
+    [HttpPost("{id:guid}/reverse")]
+    public async Task<ActionResult<ReversalResult>> Reverse(
+        Guid id, ReasonRequest request, CancellationToken ct)
+    {
+        var result = await _reversal.ReverseMovementAsync(id, request.Reason, User.GetUserId(), ct);
         return Ok(result);
     }
 

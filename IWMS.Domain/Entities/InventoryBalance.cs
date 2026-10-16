@@ -22,7 +22,8 @@ public class InventoryBalance : BaseEntity
     Guid performedByUserId,
     string reason,
     string referenceNumber,
-    Guid? idempotencyKey = null
+    Guid? idempotencyKey = null,
+    Guid? sourceLineId = null
         )
     {
         if (quantity <= 0)
@@ -58,6 +59,46 @@ public class InventoryBalance : BaseEntity
             Reason = reason,
             ReferenceNumber = referenceNumber,
             IdempotencyKey = idempotencyKey,
+            SourceLineId = sourceLineId,
+            ProductId = ProductId,
+            StorageLocationId = StorageLocationId,
+            PerformedByUserId = performedByUserId
+        };
+    }
+    public InventoryMovement PostReversal(
+    InventoryMovement original,
+    Guid performedByUserId,
+    string reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new DomainException("A reversal requires a reason.");
+
+        if (original.Type == MovementType.Reversal)
+            throw new DomainException(
+                "A reversal cannot itself be reversed. Post a new correct transaction instead.");
+
+        if (original.ProductId != ProductId || original.StorageLocationId != StorageLocationId)
+            throw new DomainException("The movement does not belong to this balance.");
+
+        var change = -original.QuantityChange;
+
+        if (change < 0 && -change > Available)
+            throw new DomainException(
+                $"Cannot reverse: the stock has been used since. Available: {Available}, needed: {-change}.");
+
+        var before = OnHand;
+        OnHand += change;
+        UpdatedAtUtc = DateTime.UtcNow;
+
+        return new InventoryMovement
+        {
+            Type = MovementType.Reversal,
+            QuantityChange = change,
+            QuantityBefore = before,
+            QuantityAfter = OnHand,
+            Reason = reason,
+            ReferenceNumber = original.ReferenceNumber,
+            ReversesMovementId = original.Id,
             ProductId = ProductId,
             StorageLocationId = StorageLocationId,
             PerformedByUserId = performedByUserId

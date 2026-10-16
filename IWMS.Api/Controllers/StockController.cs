@@ -1,6 +1,8 @@
 ﻿using IWMS.Api.Dtos;
+using IWMS.Api.Security;
 using IWMS.Application;
 using IWMS.Application.Ledger;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +10,7 @@ namespace IWMS.Api.Controllers;
 
 [ApiController]
 [Route("api/stock")]
+[Authorize(Policy = Policies.ViewData)]
 public class StockController : ControllerBase
 {
     private readonly StockLedgerService _ledger;
@@ -19,21 +22,25 @@ public class StockController : ControllerBase
         _db = db;
     }
 
+    [Authorize(Policy = Policies.PostIssue)]
     [HttpPost("issue")]
     public async Task<ActionResult<StockPostingResult>> Issue(
         IssueStockRequest request, CancellationToken ct) =>
-        ToResponse(await _ledger.IssueAsync(request, ct));
+        ToResponse(await _ledger.IssueAsync(request with { PerformedByUserId = User.GetUserId() }, ct));
 
+    [Authorize(Policy = Policies.PostAdjustment)]
     [HttpPost("adjust")]
     public async Task<ActionResult<StockPostingResult>> Adjust(
         AdjustStockRequest request, CancellationToken ct) =>
-        ToResponse(await _ledger.AdjustAsync(request, ct));
+        ToResponse(await _ledger.AdjustAsync(request with { PerformedByUserId = User.GetUserId() }, ct));
 
+    [Authorize(Policy = Policies.PostTransfer)]
     [HttpPost("transfer")]
     public async Task<ActionResult<StockPostingResult>> Transfer(
         TransferStockRequest request, CancellationToken ct) =>
-        ToResponse(await _ledger.TransferAsync(request, ct));
+        ToResponse(await _ledger.TransferAsync(request with { PerformedByUserId = User.GetUserId() }, ct));
 
+    [Authorize(Policy = Policies.ViewAudit)]
     [HttpGet("reconciliation")]
     public async Task<ActionResult<List<ReconciliationMismatch>>> Reconcile(CancellationToken ct)
     {

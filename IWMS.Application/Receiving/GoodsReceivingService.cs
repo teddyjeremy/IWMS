@@ -3,16 +3,19 @@ using IWMS.Domain.Entities;
 using IWMS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using IWMS.Application.Common;
+using IWMS.Application.Audit;
 
 namespace IWMS.Application.Receiving;
 
 public class GoodsReceivingService
 {
     private readonly IAppDbContext _db;
+    private readonly AuditLogger _audit;
 
-    public GoodsReceivingService(IAppDbContext db)
+    public GoodsReceivingService(IAppDbContext db, AuditLogger audit)
     {
         _db = db;
+        _audit = audit;
     }
 
     public async Task<ReceiptResult> ReceiveAsync(
@@ -58,18 +61,26 @@ public class GoodsReceivingService
             if (!locationIsActive)
                 throw new DomainException("Storage location not found or inactive.");
 
-            if (line.QuantityAccepted > orderLine.QuantityOutstanding && !request.AllowOverReceipt)
+            var isOverReceipt = line.QuantityAccepted > orderLine.QuantityOutstanding;
+
+            if (isOverReceipt && !request.AllowOverReceipt)
                 throw new DomainException(
                     $"Accepted quantity {line.QuantityAccepted} exceeds the outstanding {orderLine.QuantityOutstanding}.");
 
-            receipt.Lines.Add(new GoodsReceiptLine
+            if (isOverReceipt)
+                _audit.Record(
+                    "PurchaseOrder.OverReceived", nameof(PurchaseOrder), order.Id,
+                    request.ReceivedByUserId, "Over-receipt permitted",
+                    $"Accepted {line.QuantityAccepted}, outstanding was {orderLine.QuantityOutstanding}");
+            var receiptLine = new GoodsReceiptLine
             {
                 PurchaseOrderLineId = orderLine.Id,
                 StorageLocationId = line.StorageLocationId,
                 QuantityAccepted = line.QuantityAccepted,
                 QuantityRejected = line.QuantityRejected,
                 DiscrepancyNote = line.DiscrepancyNote
-            });
+            };
+            receipt.Lines.Add(receiptLine);
 
             orderLine.QuantityReceived += line.QuantityAccepted;
 
@@ -78,11 +89,12 @@ public class GoodsReceivingService
                 var balance = await _db.GetOrCreateBalanceAsync(orderLine.ProductId, line.StorageLocationId, ct);
 
                 var movement = balance.Post(
-                    MovementType.Receipt,
-                    line.QuantityAccepted,
-                    request.ReceivedByUserId,
-                    "Goods receipt",
-                    order.OrderNumber);
+                 MovementType.Receipt,
+                 line.QuantityAccepted,
+                 request.ReceivedByUserId,
+                 "Goods receipt",
+                 receipt.ReceiptNumber,
+                 sourceLineId: receiptLine.Id);
 
                 _db.InventoryMovements.Add(movement);
             }

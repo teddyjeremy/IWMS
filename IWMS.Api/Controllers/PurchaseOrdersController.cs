@@ -1,6 +1,10 @@
 ﻿using IWMS.Api.Dtos;
+using IWMS.Api.Security;
 using IWMS.Application;
+using IWMS.Application.Purchasing;
+using IWMS.Domain.Entities;
 using IWMS.Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,18 +12,23 @@ namespace IWMS.Api.Controllers;
 
 [ApiController]
 [Route("api/purchase-orders")]
+[Authorize(Policy = Policies.ViewData)]
 public class PurchaseOrdersController : ControllerBase
 {
     private readonly IAppDbContext _db;
+    private readonly PurchasingService _purchasing;
 
-    public PurchaseOrdersController(IAppDbContext db)
+    public PurchaseOrdersController(IAppDbContext db, PurchasingService purchasing)
     {
         _db = db;
+        _purchasing = purchasing;
     }
 
     [HttpGet]
     public async Task<ActionResult<PagedResult<PurchaseOrderListItem>>> List(
         [FromQuery] PurchaseOrderStatus? status,
+        [FromQuery] Guid? supplierId,
+        [FromQuery] string? search,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken ct = default)
@@ -28,6 +37,10 @@ public class PurchaseOrdersController : ControllerBase
 
         if (status is not null)
             query = query.Where(o => o.Status == status);
+        if (supplierId is not null)
+            query = query.Where(o => o.SupplierId == supplierId);
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(o => o.OrderNumber.Contains(search.Trim()));
 
         var result = await query
             .OrderByDescending(o => o.CreatedAtUtc)
@@ -37,8 +50,10 @@ public class PurchaseOrdersController : ControllerBase
                 o.Supplier.Name,
                 o.Status,
                 o.ExpectedDeliveryUtc,
+                o.CreatedByUser.FirstName + " " + o.CreatedByUser.LastName,
                 o.Lines.Sum(l => l.QuantityOrdered),
-                o.Lines.Sum(l => l.QuantityReceived)))
+                o.Lines.Sum(l => l.QuantityReceived),
+                o.Lines.Sum(l => l.QuantityOrdered * l.ExpectedUnitPrice)))
             .ToPagedAsync(page, pageSize, ct);
 
         return Ok(result);
@@ -52,24 +67,98 @@ public class PurchaseOrdersController : ControllerBase
             .Select(o => new PurchaseOrderDetail(
                 o.Id,
                 o.OrderNumber,
+                o.SupplierId,
                 o.Supplier.Name,
                 o.Status,
                 o.ExpectedDeliveryUtc,
                 o.Notes,
-                o.Lines.Select(l => new PurchaseOrderLineItem(
-                    l.Id,
-                    l.ProductId,
-                    l.Product.Sku,
-                    l.Product.Name,
-                    l.QuantityOrdered,
-                    l.QuantityReceived,
-                    l.QuantityOrdered - l.QuantityReceived,
-                    l.ExpectedUnitPrice)).ToList()))
+                o.CreatedByUser.FirstName + " " + o.CreatedByUser.LastName,
+                o.ApprovedByUser != null
+                    ? o.ApprovedByUser.FirstName + " " + o.ApprovedByUser.LastName
+                    : null,
+                o.ApprovedAtUtc,
+                o.RejectionReason,
+                o.Lines
+                    .OrderBy(l => l.Product.Sku)
+                    .Select(l => new PurchaseOrderLineItem(
+                        l.Id,
+                        l.ProductId,
+                        l.Product.Sku,
+                        l.Product.Name,
+                        l.QuantityOrdered,
+                        l.QuantityReceived,
+                        l.QuantityOrdered - l.QuantityReceived,
+                        l.ExpectedUnitPrice,
+                        l.QuantityOrdered * l.ExpectedUnitPrice))
+                    .ToList(),
+                o.Version))
             .SingleOrDefaultAsync(ct);
 
         if (order is null)
             return NotFound();
 
-        return Ok(order);
+        var history = await _db.AuditEvents.AsNoTracking()
+            .Where(a => a.EntityName == nameof(PurchaseOrder) && a.EntityId == id)
+            .OrderBy(a => a.CreatedAtUtc)
+            .Select(a => new PurchaseOrderHistoryItem(
+                a.CreatedAtUtc,
+                a.Action,
+                a.ActorUser != null
+                    ? a.ActorUser.FirstName + " " + a.ActorUser.LastName
+                    : "(system)",
+                a.Reason))
+            .ToListAsync(ct);
+
+        return Ok(order with { History = history });
+    }
+
+    [Authorize(Policy = Policies.ManagePurchaseOrders)]
+    [HttpPost]
+    public async Task<ActionResult<PurchaseOrderCreated>> Create(
+        SavePurchaseOrderRequest request, CancellationToken ct)
+    {
+        var created = await _purchasing.CreateAsync(request, User.GetUserId(), ct);
+        return StatusCode(StatusCodes.Status201Created, created);
+    }
+
+    [Authorize(Policy = Policies.ManagePurchaseOrders)]
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult> Update(
+        Guid id, SavePurchaseOrderRequest request, CancellationToken ct)
+    {
+        await _purchasing.UpdateAsync(id, request, User.GetUserId(), ct);
+        return NoContent();
+    }
+
+    [Authorize(Policy = Policies.ManagePurchaseOrders)]
+    [HttpPost("{id:guid}/submit")]
+    public async Task<ActionResult> Submit(Guid id, CancellationToken ct)
+    {
+        await _purchasing.SubmitAsync(id, User.GetUserId(), ct);
+        return NoContent();
+    }
+
+    [Authorize(Policy = Policies.ApprovePurchaseOrders)]
+    [HttpPost("{id:guid}/approve")]
+    public async Task<ActionResult> Approve(Guid id, CancellationToken ct)
+    {
+        await _purchasing.ApproveAsync(id, User.GetUserId(), ct);
+        return NoContent();
+    }
+
+    [Authorize(Policy = Policies.ApprovePurchaseOrders)]
+    [HttpPost("{id:guid}/reject")]
+    public async Task<ActionResult> Reject(Guid id, ReasonRequest request, CancellationToken ct)
+    {
+        await _purchasing.RejectAsync(id, request.Reason, User.GetUserId(), ct);
+        return NoContent();
+    }
+
+    [Authorize(Policy = Policies.CancelPurchaseOrders)]
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<ActionResult> Cancel(Guid id, ReasonRequest request, CancellationToken ct)
+    {
+        await _purchasing.CancelAsync(id, request.Reason, User.GetUserId(), ct);
+        return NoContent();
     }
 }

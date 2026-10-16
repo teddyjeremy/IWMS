@@ -22,6 +22,8 @@ namespace IWMS.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.HasSequence("purchase_order_number_seq");
+
             modelBuilder.Entity("IWMS.Domain.Entities.AuditEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -324,6 +326,9 @@ namespace IWMS.Infrastructure.Migrations
                     b.Property<Guid?>("ReversesMovementId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("SourceLineId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("StorageLocationId")
                         .HasColumnType("uuid");
 
@@ -344,6 +349,9 @@ namespace IWMS.Infrastructure.Migrations
                     b.HasIndex("PerformedByUserId");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("ReversesMovementId")
+                        .IsUnique();
 
                     b.HasIndex("StorageLocationId");
 
@@ -1220,6 +1228,9 @@ namespace IWMS.Infrastructure.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.ToTable("Suppliers");
                 });
