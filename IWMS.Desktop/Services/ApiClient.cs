@@ -13,6 +13,8 @@ public sealed class ApiClient
     public string BaseUrl { get; private set; } = "https://localhost:7001/";
     public bool IsSignedIn => _http.DefaultRequestHeaders.Authorization is not null;
     public string? CurrentUserName { get; private set; }
+    public IReadOnlyList<string> CurrentUserRoles { get; private set; } = Array.Empty<string>();
+    public bool IsInRole(string role) => CurrentUserRoles.Contains(role, StringComparer.OrdinalIgnoreCase);
 
     public void SetBaseUrl(string url)
     {
@@ -41,6 +43,7 @@ public sealed class ApiClient
     {
         _http.DefaultRequestHeaders.Authorization = null;
         CurrentUserName = null;
+        CurrentUserRoles = Array.Empty<string>();
     }
 
     public async Task SignInAsync(string email, string password, CancellationToken ct = default)
@@ -63,6 +66,12 @@ public sealed class ApiClient
                           user.TryGetProperty("fullName", out var name)
             ? name.GetString()
             : email;
+        CurrentUserRoles = user.ValueKind == JsonValueKind.Object &&
+                           user.TryGetProperty("roles", out var roles) &&
+                           roles.ValueKind == JsonValueKind.Array
+            ? roles.EnumerateArray().Where(r => r.ValueKind == JsonValueKind.String)
+                .Select(r => r.GetString()!).Where(r => !string.IsNullOrWhiteSpace(r)).ToArray()
+            : Array.Empty<string>();
     }
 
     public async Task<T> GetAsync<T>(string path, CancellationToken ct = default)
