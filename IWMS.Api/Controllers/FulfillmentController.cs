@@ -49,6 +49,33 @@ public sealed class FulfillmentController : ControllerBase
         return Ok(shipments);
     }
 
+    [HttpGet("shipments/{shipmentId:guid}")]
+    [Authorize(Policy = Policies.ViewData)]
+    public async Task<ActionResult> GetShipment(Guid shipmentId, CancellationToken ct)
+    {
+        var shipment = await _db.Shipments.AsNoTracking()
+            .Where(s => s.Id == shipmentId)
+            .Select(s => new
+            {
+                s.Id,
+                s.ShipmentNumber,
+                s.Status,
+                s.SalesOrderId,
+                OrderNumber = s.SalesOrder.OrderNumber,
+                Lines = s.Lines.OrderBy(l => l.SalesOrderLine.Product.Sku)
+                    .Select(l => new
+                    {
+                        l.Id,
+                        l.SalesOrderLine.Product.Sku,
+                        ProductName = l.SalesOrderLine.Product.Name,
+                        Location = l.StorageLocation.Code,
+                        l.QuantityToPick,
+                        l.QuantityPicked
+                    }).ToList()
+            }).SingleOrDefaultAsync(ct);
+        return shipment is null ? NotFound() : Ok(shipment);
+    }
+
     [HttpPost("sales-orders/{orderId:guid}/reserve")]
     [Authorize(Policy = Policies.PostIssue)]
     public async Task<ActionResult> Reserve(Guid orderId, CancellationToken ct)
