@@ -1,0 +1,47 @@
+<Window x:Class="IWMS.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="IWMS | Inventory and Warehouse Management"
+        Height="780" Width="1280" MinHeight="620" MinWidth="960"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource PageBackground}">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="230"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Border Background="#122F43" Grid.Column="0">
+            <DockPanel Margin="18">
+                <StackPanel DockPanel.Dock="Top" Margin="0,8,0,30">
+                    <TextBlock Text="IWMS" Foreground="White" FontSize="28" FontWeight="Bold"/>
+                    <TextBlock Text="WAREHOUSE OPERATIONS" Foreground="#AFC6D4" FontSize="10" Margin="0,5,0,0"/>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Bottom">
+                    <TextBlock x:Name="ConnectionLabel" Text="Not connected" Foreground="#C8D6DF" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <Button Content="Connect / Sign in" Click="SignIn_Click" HorizontalContentAlignment="Left"/>
+                </StackPanel>
+                <StackPanel>
+                    <Button Content="Dashboard" Tag="Dashboard" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button Content="Customers" Tag="Customers" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button Content="Sales orders" Tag="Sales orders" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button Content="Fulfillment" Tag="Fulfillment" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button Content="Inventory" Tag="Inventory" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button Content="Purchasing" Tag="Purchasing" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button Content="Reports" Tag="Reports" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+        <Grid Grid.Column="1" Margin="30">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <StackPanel Grid.Row="0" Margin="0,0,0,22">
+                <TextBlock x:Name="PageTitle" Text="Dashboard" FontSize="30" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                <TextBlock x:Name="PageSubtitle" Text="Inventory position and warehouse activity" FontSize="14" Foreground="{StaticResource MutedInk}" Margin="0,6,0,0"/>
+            </StackPanel>
+            <ContentControl x:Name="PageContent" Grid.Row="1"/>
+            <TextBlock x:Name="StatusText" Grid.Row="2" Text="Connect to the IWMS API to load live data." Foreground="{StaticResource MutedInk}" Margin="0,18,0,0"/>
+        </Grid>
+    </Grid>
+</Window>
