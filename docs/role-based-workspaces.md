@@ -10,7 +10,7 @@ The desktop client personalizes its navigation and dashboard after the API authe
 | Warehouse Manager | Orders, fulfillment, transfers, counts, returns, inventory, purchasing, and reports |
 | Purchaser | Inventory, purchase orders, approval KPIs, and reports |
 | Warehouse Operator | Inventory, fulfillment, transfers, counts, and returns |
-| Sales Officer | Customers, sales orders, fulfillment, inventory, and order KPIs |
+| Sales Officer | Customers, sales order entry and draft editing, order confirmation/cancellation, inventory lookup, and order KPIs |
 | Viewer / Auditor | Read-oriented inventory, reporting, and audit KPIs |
 
 The exact permissions for every API endpoint must continue to be enforced by ASP.NET Core authorization. If the backend role names or permissions change, update the desktop role map and its tests in the same change.
@@ -22,9 +22,10 @@ The exact permissions for every API endpoint must continue to be enforced by ASP
 - [x] Show role-appropriate navigation and dashboard KPIs.
 - [x] Add an existing-customer editor and deactivation action for roles allowed by the API.
 - [x] Add editable product detail views with category, unit, reorder threshold, cost, and optimistic concurrency version.
-- [ ] Add safe sales-order detail editing only for eligible draft orders, with API-side state validation.
-- [ ] Replace single-line transfer and return dialogs with multi-line document editors.
-- [ ] Add clear validation summaries, empty states, loading states, and recoverable error messages.
+- [x] Add API-side draft sales-order editing with state checks, optimistic concurrency, and fulfillment activity protection.
+- [ ] Add a multi-line sales-order editor to the desktop client and expose draft editing in the order workspace.
+- [x] Replace single-line transfer and return entry with multi-line document payloads.
+- [ ] Finish clear validation summaries and empty states; loading feedback and recoverable workspace errors are implemented.
 - [ ] Add tests for role-to-navigation mapping and verify the API rejects unauthorized requests.
 - [ ] Verify the packaged Windows client against the deployed HTTPS API after each release build.
 
