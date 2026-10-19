@@ -64,7 +64,7 @@ Work in small, reviewable sections. Keep each commit focused, run the build and 
 1. Validate the existing project references, migrations, receiving, stock ledger and purchasing flows with a successful CI run.
 2. Exercise fulfillment end to end: reservations, partial stock, backorders, pick lists, dispatch, and cancellation under concurrent requests.
 3. Validate dashboard totals, trend data and CSV/PDF exports against seeded database scenarios.
-4. Complete document-based transfers and return processing; stock-count sessions now support snapshot, physical-count entry, variance reasons and transactional adjustment posting.
+4. Stock transfers now support approval, dispatch, receipt and discrepancy notes; return records cover customer and supplier returns; stock-count sessions support snapshot, physical-count entry, variance reasons and transactional adjustment posting.
 5. Finish desktop editing and administrative screens, improve validation/error presentation, and test the packaged app against a configured API.
 6. Expand automated tests and add release/versioning and deployment guidance.
 
@@ -85,6 +85,13 @@ All endpoints below require a valid bearer token unless the authentication endpo
 - `POST /api/fulfillment/shipments/{id}/dispatch` — post dispatch movements and update order fulfillment.
 - `POST /api/fulfillment/sales-orders/{id}/cancel` and `POST /api/fulfillment/shipments/{id}/cancel` — cancel eligible orders/shipments and release order reservations.
 - `POST /api/fulfillment/sales-orders/{id}/close-short` — close an eligible backordered/partially fulfilled order, release remaining reservations and cancel open pick lists.
+- `GET /api/stock-transfers` and `GET /api/stock-transfers/{id}` — list transfer documents and inspect line-level quantities and status.
+- `POST /api/stock-transfers` — create a warehouse transfer request with source/destination locations and quantities; it enters PendingApproval.
+- `POST /api/stock-transfers/{id}/approve` and `POST /api/stock-transfers/{id}/reject` — decide a pending transfer.
+- `POST /api/stock-transfers/{id}/dispatch` — deduct available stock at source locations and post transfer-out movements.
+- `POST /api/stock-transfers/{id}/receive` — receive all lines, post transfer-in movements for accepted quantities, and require notes for discrepancies.
+- `GET /api/returns` and `GET /api/returns/{id}` — inspect customer and supplier return records.
+- `POST /api/returns` — process a customer return against a dispatched sales order or a supplier return against a goods receipt. Restocked customer returns and supplier returns post stock movements; quarantine and scrap dispositions are recorded without increasing available stock.
 - `GET /api/stock-counts` and `GET /api/stock-counts/{id}` — inspect stock-count sessions and line-level system/count quantities.\n- `POST /api/stock-counts` — start a count for a warehouse.\n- `PUT /api/stock-counts/{id}/lines` — record physical quantities and variance reasons; the session moves to review when every line is counted.\n- `POST /api/stock-counts/{id}/post` — post stock adjustments for variances; posting is stopped if inventory changed after the count snapshot.\n- `GET /api/reports/dashboard` — stock value, low-stock products, open purchase orders, pending approvals and order totals.
 - `GET /api/reports/inventory-trend?days=30` — daily movement totals for the requested period.
 - `GET /api/reports/inventory.csv` — download an inventory CSV.
