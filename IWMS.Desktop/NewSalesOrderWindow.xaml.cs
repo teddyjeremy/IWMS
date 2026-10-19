@@ -74,8 +74,8 @@ public partial class NewSalesOrderWindow : Window
     private async Task LoadDraftAsync(Guid id)
     {
         var order = await _api.GetJsonAsync($"api/sales-orders/{id}");
-        var status = order.GetProperty("status").GetInt32();
-        if (status != 1)
+        var status = order.GetProperty("status").GetString();
+        if (!string.Equals(status, "Draft", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Only draft sales orders can be edited.");
         _version = order.GetProperty("version").GetUInt32();
         var customerId = order.GetProperty("customerId").GetString();
