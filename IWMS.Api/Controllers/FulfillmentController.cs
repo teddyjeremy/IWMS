@@ -24,6 +24,31 @@ public sealed class FulfillmentController : ControllerBase
         _audit = audit;
     }
 
+    [HttpGet("shipments")]
+    [Authorize(Policy = Policies.ViewData)]
+    public async Task<ActionResult> ListShipments(
+        [FromQuery] ShipmentStatus? status,
+        CancellationToken ct)
+    {
+        var query = _db.Shipments.AsNoTracking();
+        if (status.HasValue) query = query.Where(s => s.Status == status.Value);
+        var shipments = await query.OrderByDescending(s => s.CreatedAtUtc)
+            .Select(s => new
+            {
+                s.Id,
+                s.ShipmentNumber,
+                s.SalesOrderId,
+                OrderNumber = s.SalesOrder.OrderNumber,
+                Customer = s.SalesOrder.Customer.Name,
+                s.Status,
+                s.CreatedAtUtc,
+                LineCount = s.Lines.Count,
+                QuantityToPick = s.Lines.Sum(l => l.QuantityToPick),
+                QuantityPicked = s.Lines.Sum(l => l.QuantityPicked)
+            }).ToListAsync(ct);
+        return Ok(shipments);
+    }
+
     [HttpPost("sales-orders/{orderId:guid}/reserve")]
     [Authorize(Policy = Policies.PostIssue)]
     public async Task<ActionResult> Reserve(Guid orderId, CancellationToken ct)
