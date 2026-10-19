@@ -99,7 +99,7 @@ public sealed class StockCountsController : ControllerBase
         var balances = await _db.InventoryBalances
             .Include(b => b.StorageLocation)
             .Where(b => b.StorageLocation.WarehouseId == request.WarehouseId &&
-                        b.StorageLocation.IsActive && b.OnHand != 0)
+                        b.StorageLocation.IsActive)
             .OrderBy(b => b.StorageLocation.Code)
             .ThenBy(b => b.ProductId)
             .ToListAsync(ct);
@@ -216,6 +216,12 @@ public sealed class StockCountsController : ControllerBase
             var balance = await _db.InventoryBalances.SingleOrDefaultAsync(
                 b => b.ProductId == line.ProductId && b.StorageLocationId == line.StorageLocationId, ct)
                 ?? throw new DomainException("Inventory balance is missing for a counted line; posting was stopped.");
+
+            // Do not overwrite inventory movements that happened after the snapshot.
+            // A fresh count is safer than applying a stale variance to a changed balance.
+            if (balance.OnHand != line.SystemQuantity)
+                throw new DomainException(
+                    $"Stock changed after count line {line.Id} was created. Recount this item before posting.");
 
             var movement = balance.Post(
                 variance > 0 ? MovementType.AdjustmentIncrease : MovementType.AdjustmentDecrease,
