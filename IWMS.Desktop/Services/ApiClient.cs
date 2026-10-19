@@ -21,6 +21,7 @@ public sealed class ApiClient
             throw new ArgumentException("Enter a valid API URL, including https:// or http://.");
         BaseUrl = uri.ToString().TrimEnd('/') + "/";
         _http.BaseAddress = new Uri(BaseUrl);
+        _http.DefaultRequestHeaders.Authorization = null;
     }
 
     public async Task SignInAsync(string email, string password, CancellationToken ct = default)
@@ -52,6 +53,14 @@ public sealed class ApiClient
             throw new InvalidOperationException($"Request failed ({(int)response.StatusCode}) for {path}.");
         return await response.Content.ReadFromJsonAsync<T>(JsonOptions, ct)
             ?? throw new InvalidOperationException("The API returned an empty response.");
+    }
+
+    public async Task<byte[]> GetBytesAsync(string path, CancellationToken ct = default)
+    {
+        using var response = await _http.GetAsync(path, ct);
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Request failed ({(int)response.StatusCode}) for {path}.");
+        return await response.Content.ReadAsByteArrayAsync(ct);
     }
 }
 
