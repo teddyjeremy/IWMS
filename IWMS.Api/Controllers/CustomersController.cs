@@ -158,7 +158,7 @@ public sealed class CustomersController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 200)
             throw new DomainException("Customer name is required and must be 200 characters or fewer.");
         if (string.IsNullOrWhiteSpace(request.Email) || request.Email.Trim().Length > 256 ||
-            !request.Email.Contains('@', StringComparison.Ordinal))
+            !request.Email.Contains('@'))
             throw new DomainException("A valid customer email is required (maximum 256 characters).");
         if (request.Phone.Trim().Length > 50)
             throw new DomainException("Phone must be 50 characters or fewer.");
