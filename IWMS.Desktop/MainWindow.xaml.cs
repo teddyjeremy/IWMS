@@ -142,16 +142,23 @@ public partial class MainWindow : Window
             StatusText.Text = $"Loading {page.ToLowerInvariant()}...";
             var json = await _api.GetJsonAsync(endpoint);
             var dataGrid = CreateDataGrid(json);
-            if (page == "Customers")
+            if (page is "Customers" or "Sales orders")
             {
                 var workspace = new DockPanel();
                 var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
-                var addButton = new Button { Content = "New customer", Background = System.Windows.Media.Brushes.SteelBlue, Foreground = System.Windows.Media.Brushes.White };
+                var addButton = new Button
+                {
+                    Content = page == "Customers" ? "New customer" : "New sales order",
+                    Background = System.Windows.Media.Brushes.SteelBlue,
+                    Foreground = System.Windows.Media.Brushes.White
+                };
                 addButton.Click += async (_, _) =>
                 {
-                    var dialog = new NewCustomerWindow(_api) { Owner = this };
-                    if (dialog.ShowDialog() == true)
-                        await LoadWorkspaceAsync("Customers");
+                    var created = page == "Customers"
+                        ? new NewCustomerWindow(_api) { Owner = this }.ShowDialog()
+                        : new NewSalesOrderWindow(_api) { Owner = this }.ShowDialog();
+                    if (created == true)
+                        await LoadWorkspaceAsync(page);
                 };
                 toolbar.Children.Add(addButton);
                 DockPanel.SetDock(toolbar, Dock.Top);
