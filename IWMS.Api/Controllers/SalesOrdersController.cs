@@ -95,7 +95,7 @@ public sealed class SalesOrdersController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = Policies.PostIssue)]
+    [Authorize(Policy = Policies.ManageSalesOrders)]
     public async Task<ActionResult<object>> Create(
         CreateSalesOrderRequest request,
         CancellationToken ct)
@@ -154,8 +154,52 @@ public sealed class SalesOrdersController : ControllerBase
             new { order.Id, order.OrderNumber, order.Status });
     }
 
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = Policies.ManageSalesOrders)]
+    public async Task<IActionResult> UpdateDraft(Guid id, UpdateSalesOrderRequest request, CancellationToken ct)
+    {
+        if (request.CustomerId == Guid.Empty)
+            throw new DomainException("A customer is required.");
+        if (request.Lines is null || request.Lines.Count == 0)
+            throw new DomainException("A sales order must contain at least one line.");
+        if (request.Lines.Any(l => l.ProductId == Guid.Empty || l.QuantityOrdered <= 0 || l.UnitPrice < 0))
+            throw new DomainException("Each line needs a product, a positive quantity and a non-negative unit price.");
+        if (request.Notes?.Length > 2000)
+            throw new DomainException("Notes must be 2000 characters or fewer.");
+        if (request.RequiredDateUtc.HasValue && request.RequiredDateUtc.Value.Kind == DateTimeKind.Local)
+            throw new DomainException("RequiredDateUtc must be supplied in UTC.");
+
+        var order = await _db.SalesOrders.Include(o => o.Lines).SingleOrDefaultAsync(o => o.Id == id, ct);
+        if (order is null) return NotFound();
+        if (order.Status != SalesOrderStatus.Draft)
+            throw new DomainException("Only draft sales orders can be edited.");
+        if (order.Lines.Any(l => l.QuantityReserved != 0 || l.QuantityPicked != 0 || l.QuantityDispatched != 0))
+            throw new DomainException("An order with reservation or fulfillment activity cannot be edited.");
+        _db.SetOriginalVersion(order, request.Version);
+
+        var customer = await _db.Customers.SingleOrDefaultAsync(c => c.Id == request.CustomerId && c.IsActive, ct);
+        if (customer is null) throw new DomainException("The customer does not exist or is inactive.");
+        var productIds = request.Lines.Select(l => l.ProductId).Distinct().ToArray();
+        var activeProductIds = await _db.Products.Where(p => productIds.Contains(p.Id) && p.IsActive).Select(p => p.Id).ToListAsync(ct);
+        if (activeProductIds.Count != productIds.Length)
+            throw new DomainException("One or more products do not exist or are inactive.");
+
+        _db.SalesOrderLines.RemoveRange(order.Lines);
+        order.CustomerId = customer.Id;
+        order.RequiredDateUtc = request.RequiredDateUtc;
+        order.Notes = request.Notes?.Trim() ?? string.Empty;
+        order.UpdatedAtUtc = DateTime.UtcNow;
+        order.Lines = request.Lines.Select(line => new SalesOrderLine
+        {
+            SalesOrderId = order.Id, ProductId = line.ProductId,
+            QuantityOrdered = line.QuantityOrdered, UnitPrice = line.UnitPrice
+        }).ToList();
+        _audit.Record("SalesOrder.DraftUpdated", nameof(SalesOrder), order.Id, User.GetUserId(), details: order.OrderNumber);
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
     [HttpPost("{id:guid}/confirm")]
-    [Authorize(Policy = Policies.PostIssue)]
+    [Authorize(Policy = Policies.ManageSalesOrders)]
     public async Task<IActionResult> Confirm(Guid id, CancellationToken ct)
     {
         var order = await _db.SalesOrders
@@ -175,7 +219,7 @@ public sealed class SalesOrdersController : ControllerBase
     }
 
     [HttpPost("{id:guid}/cancel")]
-    [Authorize(Policy = Policies.PostIssue)]
+    [Authorize(Policy = Policies.ManageSalesOrders)]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken ct)
     {
         var order = await _db.SalesOrders
@@ -206,6 +250,13 @@ public sealed record CreateSalesOrderLineRequest(
     Guid ProductId,
     decimal QuantityOrdered,
     decimal UnitPrice);
+
+public sealed record UpdateSalesOrderRequest(
+    Guid CustomerId,
+    List<CreateSalesOrderLineRequest> Lines,
+    uint Version,
+    DateTime? RequiredDateUtc = null,
+    string? Notes = null);
 
 public sealed record SalesOrderListItem(
     Guid Id,
