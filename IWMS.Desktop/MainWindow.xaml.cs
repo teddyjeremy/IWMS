@@ -542,12 +542,22 @@ public partial class MainWindow : Window
                 var detail = await _api.GetJsonAsync($"api/stock-transfers/{id}");
                 if (!detail.TryGetProperty("lines", out var lines) || lines.ValueKind != JsonValueKind.Array)
                     throw new InvalidOperationException("The transfer response did not contain lines.");
-                var receiptLines = lines.EnumerateArray().Select(line => new
+                var receiptLines = new List<object>();
+                foreach (var line in lines.EnumerateArray())
                 {
-                    lineId = line.GetProperty("id").GetGuid(),
-                    quantityReceived = line.GetProperty("quantityDispatched").GetDecimal(),
-                    discrepancyNote = (string?)null
-                }).ToList();
+                    var lineId = line.GetProperty("id").GetGuid();
+                    var dispatched = line.GetProperty("quantityDispatched").GetDecimal();
+                    var receivedText = Prompt("Receive transfer", $"{line.GetProperty("sku").GetString()} dispatched quantity: {dispatched}. Enter quantity received:");
+                    if (!decimal.TryParse(receivedText, NumberStyles.Number, CultureInfo.InvariantCulture, out var received) ||
+                        received < 0 || received > dispatched)
+                        throw new InvalidOperationException("Receipt cancelled or invalid. Enter a quantity between zero and dispatched quantity.");
+                    var discrepancyNote = received == dispatched
+                        ? null
+                        : Prompt("Receipt discrepancy", "Explain the missing or damaged quantity:");
+                    if (received != dispatched && string.IsNullOrWhiteSpace(discrepancyNote))
+                        throw new InvalidOperationException("A discrepancy note is required when received quantity differs from dispatched quantity.");
+                    receiptLines.Add(new { lineId, quantityReceived = received, discrepancyNote });
+                }
                 await _api.PostJsonAsync($"api/stock-transfers/{id}/receive", new { lines = receiptLines });
             }
             StatusText.Text = "Transfer action completed.";
