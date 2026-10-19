@@ -298,6 +298,7 @@ public partial class MainWindow : Window
                 if (page is "Customers" or "Sales orders")
                 {
                     var canManageMasterData = _api.IsInRole("Administrator") || _api.IsInRole("Warehouse Manager");
+                    var canManageSalesOrders = _api.IsInRole("Administrator") || _api.IsInRole("Warehouse Manager") || _api.IsInRole("Sales Officer");
                     var canPostIssue = _api.IsInRole("Warehouse Manager") || _api.IsInRole("Warehouse Operator");
                     var addButton = new Button
                     {
@@ -306,7 +307,7 @@ public partial class MainWindow : Window
                         Foreground = System.Windows.Media.Brushes.White,
                         Visibility = page == "Customers"
                             ? (canManageMasterData ? Visibility.Visible : Visibility.Collapsed)
-                            : (canPostIssue ? Visibility.Visible : Visibility.Collapsed)
+                            : (canManageSalesOrders ? Visibility.Visible : Visibility.Collapsed)
                     };
                     addButton.Click += async (_, _) =>
                     {
@@ -318,6 +319,36 @@ public partial class MainWindow : Window
                         if (created == true) await LoadWorkspaceAsync(page);
                     };
                     toolbar.Children.Add(addButton);
+                    if (page == "Sales orders" && canManageSalesOrders)
+                    {
+                        var editOrderButton = new Button { Content = "Edit selected draft", Margin = new Thickness(8, 0, 0, 0) };
+                        editOrderButton.Click += async (_, _) =>
+                        {
+                            var orderId = GetSelectedGuid(dataGrid);
+                            if (orderId is null)
+                            {
+                                StatusText.Text = "Select a sales order first.";
+                                return;
+                            }
+                            try
+                            {
+                                var detail = await _api.GetJsonAsync($"api/sales-orders/{orderId.Value}");
+                                if (!detail.TryGetProperty("status", out var status) || !string.Equals(status.GetString(), "Draft", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    StatusText.Text = "Only draft sales orders can be edited.";
+                                    return;
+                                }
+                                var dialog = new NewSalesOrderWindow(_api, orderId.Value) { Owner = this };
+                                if (dialog.ShowDialog() == true)
+                                {
+                                    StatusText.Text = "Draft sales order updated.";
+                                    await LoadWorkspaceAsync("Sales orders");
+                                }
+                            }
+                            catch (Exception ex) { StatusText.Text = ex.Message; }
+                        };
+                        toolbar.Children.Add(editOrderButton);
+                    }
                     if (page == "Customers" && canManageMasterData)
                     {
                         var editCustomerButton = new Button { Content = "Edit selected" };
