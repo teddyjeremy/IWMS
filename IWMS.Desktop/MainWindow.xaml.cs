@@ -191,10 +191,22 @@ public partial class MainWindow : Window
                     reserveButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "reserve");
                     var pickListButton = new Button { Content = "Create pick list" };
                     pickListButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "pick-list");
+                    var closeShortButton = new Button { Content = "Close order short" };
+                    closeShortButton.Click += async (_, _) =>
+                    {
+                        var confirm = MessageBox.Show(
+                            "Close the selected order with its remaining quantity unfulfilled? Active reservations will be released and open pick lists cancelled.",
+                            "Close order short",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Warning);
+                        if (confirm == MessageBoxResult.Yes)
+                            await RunSelectedFulfillmentActionAsync(dataGrid, "close-short");
+                    };
                     var shipmentsButton = new Button { Content = "Show pick lists" };
                     shipmentsButton.Click += async (_, _) => { _showShipments = true; await LoadWorkspaceAsync("Fulfillment"); };
                     toolbar.Children.Add(reserveButton);
                     toolbar.Children.Add(pickListButton);
+                    toolbar.Children.Add(closeShortButton);
                     toolbar.Children.Add(shipmentsButton);
                 }
                 else
@@ -332,6 +344,8 @@ public partial class MainWindow : Window
                 await _api.PostJsonAsync($"api/sales-orders/{id}/confirm", new { });
             else if (action == "cancel-order")
                 await _api.PostJsonAsync($"api/fulfillment/sales-orders/{id}/cancel", new { });
+            else if (action == "close-short")
+                await _api.PostJsonAsync($"api/fulfillment/sales-orders/{id}/close-short", new { });
             else if (action == "dispatch")
                 await _api.PostJsonAsync($"api/fulfillment/shipments/{id}/dispatch", new { });
             else if (action == "cancel-shipment")
