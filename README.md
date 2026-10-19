@@ -70,6 +70,10 @@ Work in small, reviewable sections. Keep each commit focused, run the build and 
 
 The Windows desktop client lives in `IWMS.Desktop` (WPF). GitHub Actions publishes it separately as `IWMS-Desktop-win-x64`. The current client opens on a dedicated sign-in splash screen and keeps the application shell hidden until authentication succeeds. It supports sign-out, HTTPS-only remote API URLs, an optional `IWMS_API_BASE_URL` environment variable for managed deployments, and an administrator-only **Users & access** workspace for creating accounts, changing roles, resetting passwords and activating/deactivating users. The current client includes a live KPI dashboard, API-backed read views for customers, sales orders, products, purchase orders, stock transfers, stock counts and returns; customer and sales-order creation; order confirmation/cancellation; reservation, pick-list, picking, dispatch and short-close actions; transfer request/approval/rejection/dispatch/receipt; stock-count entry/posting; basic customer/supplier return entry; and inventory CSV/PDF exports. Editing existing customer/product/order details and broader administrative screens remain in progress.
 
+## Role-based desktop workspaces
+
+The desktop UI adapts to the authenticated user's role instead of showing every module to every user. Administrators see user access and all modules; warehouse managers and operators focus on warehouse execution; purchasers focus on purchasing and stock; sales officers focus on customers and orders; viewers/auditors get read-oriented inventory and reporting views. The API still enforces authorization independently of what the UI displays. See [role-based workspace documentation](docs/role-based-workspaces.md).
+
 ## Fulfillment and reporting endpoints
 
 All endpoints below require a valid bearer token unless the authentication endpoint explicitly allows anonymous access.

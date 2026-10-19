@@ -1,0 +1,37 @@
+<Window x:Class="IWMS.Desktop.EditProductWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Edit product" Height="700" Width="600" MinHeight="620" MinWidth="520"
+        WindowStartupLocation="CenterOwner" Background="{StaticResource PageBackground}">
+    <Grid Margin="26">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,18">
+            <TextBlock x:Name="HeaderText" Text="Edit product" FontSize="25" FontWeight="Bold" Foreground="{StaticResource Ink}"/>
+            <TextBlock Text="Update catalogue details. On-hand and reserved quantities are read-only inventory values."
+                       TextWrapping="Wrap" Foreground="{StaticResource MutedInk}" Margin="0,7,0,0"/>
+        </StackPanel>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="SKU *" Foreground="{StaticResource Ink}"/><TextBox x:Name="SkuBox"/>
+                <TextBlock Text="Product name *" Foreground="{StaticResource Ink}"/><TextBox x:Name="NameBox"/>
+                <TextBlock Text="Description" Foreground="{StaticResource Ink}"/><TextBox x:Name="DescriptionBox" AcceptsReturn="True" Height="65" TextWrapping="Wrap"/>
+                <TextBlock Text="Barcode" Foreground="{StaticResource Ink}"/><TextBox x:Name="BarcodeBox"/>
+                <TextBlock Text="Category *" Foreground="{StaticResource Ink}"/><ComboBox x:Name="CategoryBox" DisplayMemberPath="Name" SelectedValuePath="Id" Padding="10" Margin="0,5,0,14"/>
+                <TextBlock Text="Base unit *" Foreground="{StaticResource Ink}"/><ComboBox x:Name="BaseUnitBox" Padding="10" Margin="0,5,0,14"/>
+                <TextBlock Text="Cost price" Foreground="{StaticResource Ink}"/><TextBox x:Name="CostPriceBox"/>
+                <TextBlock Text="Reorder level" Foreground="{StaticResource Ink}"/><TextBox x:Name="ReorderLevelBox"/>
+                <CheckBox x:Name="ActiveBox" Content="Product is active" Margin="0,0,0,14"/>
+                <TextBlock x:Name="ErrorText" Foreground="#B42318" TextWrapping="Wrap" Margin="0,0,0,10"/>
+            </StackPanel>
+        </ScrollViewer>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Cancel" Click="Cancel_Click"/>
+            <Button x:Name="SaveButton" Content="Save changes" Click="Save_Click" IsDefault="True"
+                    Background="{StaticResource Brand}" Foreground="White"/>
+        </StackPanel>
+    </Grid>
+</Window>

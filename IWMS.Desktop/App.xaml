@@ -3,19 +3,79 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <SolidColorBrush x:Key="PageBackground" Color="#F4F6F8"/>
-        <SolidColorBrush x:Key="Ink" Color="#17212B"/>
-        <SolidColorBrush x:Key="MutedInk" Color="#667085"/>
+        <SolidColorBrush x:Key="PageBackground" Color="#F3F6F9"/>
+        <SolidColorBrush x:Key="Ink" Color="#152433"/>
+        <SolidColorBrush x:Key="MutedInk" Color="#637586"/>
         <SolidColorBrush x:Key="Brand" Color="#174A68"/>
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="14,9"/>
-            <Setter Property="Margin" Value="0,0,8,0"/>
+        <SolidColorBrush x:Key="BrandHover" Color="#236987"/>
+        <SolidColorBrush x:Key="BorderBrushSoft" Color="#E1E8EE"/>
+
+        <Style TargetType="{x:Type Button}">
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#243746"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#D8E1E8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#EEF5F8"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#AFC8D5"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.84"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Padding" Value="9,7"/>
-            <Setter Property="Margin" Value="0,4,0,12"/>
+
+        <Style TargetType="{x:Type TextBox}">
+            <Setter Property="Padding" Value="11,9"/>
+            <Setter Property="Margin" Value="0,5,0,14"/>
             <Setter Property="MinWidth" Value="240"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#D3DEE6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style TargetType="{x:Type DataGrid}">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="RowBackground" Value="White"/>
+            <Setter Property="AlternatingRowBackground" Value="#F7F9FB"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#E8EDF1"/>
+            <Setter Property="VerticalGridLinesBrush" Value="#F0F3F6"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="AutoGenerateColumns" Value="True"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="RowHeight" Value="36"/>
+            <Setter Property="ColumnHeaderHeight" Value="40"/>
+            <Setter Property="FontSize" Value="13"/>
         </Style>
     </Application.Resources>
 </Application>
