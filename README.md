@@ -65,7 +65,7 @@ Work in small, reviewable sections. Keep each commit focused, run the build and 
 5. Build the Windows desktop UI against the API, then package the UI and its required runtime/deployment files.
 6. Add CI coverage, setup instructions, architecture and entity-relationship diagrams, and release documentation.
 
-The Windows desktop client lives in `IWMS.Desktop` (WPF). GitHub Actions publishes it separately as `IWMS-Desktop-win-x64`. The current client includes sign-in, a live KPI dashboard, API-backed read views for customers, sales orders, products and purchase orders, plus inventory CSV export. Operational create/edit forms and complete reservation, picking and dispatch screens remain in progress.
+The Windows desktop client lives in `IWMS.Desktop` (WPF). GitHub Actions publishes it separately as `IWMS-Desktop-win-x64`. The current client includes sign-in, a live KPI dashboard, API-backed read views for customers, sales orders, products and purchase orders, customer and sales-order creation, order confirmation/cancellation, reservation and pick-list actions, shipment picking/dispatch/cancellation, and inventory CSV/PDF exports. Editing existing customer/product/order details and broader administrative screens remain in progress.
 
 ## Fulfillment and reporting endpoints
 
@@ -84,6 +84,7 @@ All endpoints below require a valid bearer token unless the authentication endpo
 - `GET /api/reports/dashboard` — stock value, low-stock products, open purchase orders, pending approvals and order totals.
 - `GET /api/reports/inventory-trend?days=30` — daily movement totals for the requested period.
 - `GET /api/reports/inventory.csv` — download an inventory CSV.
+- `GET /api/reports/inventory.pdf` — download a printable inventory PDF.
 
 The desktop client is a WPF app in `IWMS.Desktop`. It connects to the API URL entered at sign-in; configure the API's database and JWT settings before use. Download `IWMS-Desktop-win-x64` and `IWMS-Api-win-x64` from the same successful GitHub Actions run.
 
