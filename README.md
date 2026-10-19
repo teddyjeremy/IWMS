@@ -5,6 +5,7 @@ Inventory and warehouse management system built with .NET 10, ASP.NET Core, Enti
 ## Projects
 
 - **IWMS.Api** — ASP.NET Core API, authentication, authorization and HTTP endpoints.
+- **IWMS.Desktop** — WPF Windows client for dashboard, customer/order entry, fulfillment actions and reports.
 - **IWMS.Application** — application services and use cases.
 - **IWMS.Domain** — domain entities and enums.
 - **IWMS.Infrastructure** — EF Core persistence, database configuration and seeding.
