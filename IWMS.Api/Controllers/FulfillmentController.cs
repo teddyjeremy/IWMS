@@ -240,11 +240,16 @@ public sealed class FulfillmentController : ControllerBase
         foreach (var salesLineId in shipment.Lines.Select(l => l.SalesOrderLineId).Distinct())
         {
             var salesLine = shipment.Lines.First(l => l.SalesOrderLineId == salesLineId).SalesOrderLine;
-            salesLine.QuantityPicked = await _db.ShipmentLines
+            var pickedInOtherShipments = await _db.ShipmentLines
                 .Where(sl => sl.SalesOrderLineId == salesLineId &&
+                             sl.ShipmentId != shipmentId &&
                              sl.Shipment.Status != ShipmentStatus.Dispatched &&
                              sl.Shipment.Status != ShipmentStatus.Cancelled)
                 .SumAsync(sl => (decimal?)sl.QuantityPicked, ct) ?? 0m;
+            var pickedInCurrentShipment = shipment.Lines
+                .Where(l => l.SalesOrderLineId == salesLineId)
+                .Sum(l => l.QuantityPicked);
+            salesLine.QuantityPicked = pickedInOtherShipments + pickedInCurrentShipment;
         }
         shipment.UpdatedAtUtc = DateTime.UtcNow;
         _audit.Record("Shipment.Picked", nameof(Shipment), shipment.Id,
@@ -314,6 +319,16 @@ public sealed class FulfillmentController : ControllerBase
         }
 
         shipment.Status = ShipmentStatus.Dispatched;
+        foreach (var salesLineId in shipment.Lines.Select(l => l.SalesOrderLineId).Distinct())
+        {
+            var salesLine = shipment.Lines.First(l => l.SalesOrderLineId == salesLineId).SalesOrderLine;
+            salesLine.QuantityPicked = await _db.ShipmentLines
+                .Where(sl => sl.SalesOrderLineId == salesLineId &&
+                             sl.ShipmentId != shipmentId &&
+                             sl.Shipment.Status != ShipmentStatus.Dispatched &&
+                             sl.Shipment.Status != ShipmentStatus.Cancelled)
+                .SumAsync(sl => (decimal?)sl.QuantityPicked, ct) ?? 0m;
+        }
         shipment.DispatchedAtUtc = DateTime.UtcNow;
         shipment.DispatchedByUserId = userId;
         shipment.UpdatedAtUtc = DateTime.UtcNow;
