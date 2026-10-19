@@ -30,6 +30,7 @@
                     <Button Content="Returns" Tag="Returns" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
                     <Button Content="Inventory" Tag="Inventory" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
                     <Button Content="Purchasing" Tag="Purchasing" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button Content="Users &amp; access" x:Name="UsersNavButton" Tag="Users" Click="Navigate_Click" HorizontalContentAlignment="Left" Visibility="Collapsed"/>
                     <Button Content="Reports" Tag="Reports" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
                 </StackPanel>
             </DockPanel>
