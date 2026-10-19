@@ -19,6 +19,19 @@ public interface IAppDbContext
     DbSet<InventoryBalance> InventoryBalances { get; }
     DbSet<InventoryMovement> InventoryMovements { get; }
     DbSet<AuditEvent> AuditEvents { get; }
+    DbSet<Customer> Customers { get; }
+    DbSet<GoodsReceiptLine> GoodsReceiptLines { get; }
+    DbSet<SalesOrder> SalesOrders { get; }
+    DbSet<SalesOrderLine> SalesOrderLines { get; }
+    DbSet<Reservation> Reservations { get; }
+    DbSet<Shipment> Shipments { get; }
+    DbSet<ShipmentLine> ShipmentLines { get; }
+    DbSet<StockTransfer> StockTransfers { get; }
+    DbSet<StockTransferLine> StockTransferLines { get; }
+    DbSet<StockCountSession> StockCountSessions { get; }
+    DbSet<StockCountLine> StockCountLines { get; }
+    DbSet<ReturnRecord> ReturnRecords { get; }
+    DbSet<ReturnRecordLine> ReturnRecordLines { get; }
 
     void SetOriginalVersion<TEntity>(TEntity entity, uint version) where TEntity : BaseEntity;
 
