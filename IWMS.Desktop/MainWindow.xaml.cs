@@ -299,7 +299,6 @@ public partial class MainWindow : Window
                 {
                     var canManageMasterData = _api.IsInRole("Administrator") || _api.IsInRole("Warehouse Manager");
                     var canPostIssue = _api.IsInRole("Warehouse Manager") || _api.IsInRole("Warehouse Operator");
-                    var canManageSalesOrders = _api.IsInRole("Administrator") || _api.IsInRole("Warehouse Manager") || _api.IsInRole("Sales Officer");
                     var addButton = new Button
                     {
                         Content = page == "Customers" ? "New customer" : "New sales order",
@@ -307,7 +306,7 @@ public partial class MainWindow : Window
                         Foreground = System.Windows.Media.Brushes.White,
                         Visibility = page == "Customers"
                             ? (canManageMasterData ? Visibility.Visible : Visibility.Collapsed)
-                            : (canManageSalesOrders ? Visibility.Visible : Visibility.Collapsed)
+                            : (canPostIssue ? Visibility.Visible : Visibility.Collapsed)
                     };
                     addButton.Click += async (_, _) =>
                     {
@@ -333,8 +332,7 @@ public partial class MainWindow : Window
                             try
                             {
                                 var detail = await _api.GetJsonAsync($"api/sales-orders/{orderId.Value}");
-                                if (!detail.TryGetProperty("status", out var status) ||
-                                    !string.Equals(status.GetString(), "Draft", StringComparison.OrdinalIgnoreCase))
+                                if (!detail.TryGetProperty("status", out var status) || !string.Equals(status.GetString(), "Draft", StringComparison.OrdinalIgnoreCase))
                                 {
                                     StatusText.Text = "Only draft sales orders can be edited.";
                                     return;
@@ -389,9 +387,9 @@ public partial class MainWindow : Window
                     }
                     if (page == "Sales orders")
                     {
-                        var confirmButton = new Button { Content = "Confirm selected", Visibility = canManageSalesOrders ? Visibility.Visible : Visibility.Collapsed };
+                        var confirmButton = new Button { Content = "Confirm selected", Visibility = canPostIssue ? Visibility.Visible : Visibility.Collapsed };
                         confirmButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "confirm-order");
-                        var cancelOrderButton = new Button { Content = "Cancel selected", Visibility = canManageSalesOrders ? Visibility.Visible : Visibility.Collapsed };
+                        var cancelOrderButton = new Button { Content = "Cancel selected", Visibility = canPostIssue ? Visibility.Visible : Visibility.Collapsed };
                         cancelOrderButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "cancel-order");
                         toolbar.Children.Add(confirmButton);
                         toolbar.Children.Add(cancelOrderButton);
