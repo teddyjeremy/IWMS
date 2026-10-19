@@ -23,8 +23,8 @@ The exact permissions for every API endpoint must continue to be enforced by ASP
 - [x] Add an existing-customer editor and deactivation action for roles allowed by the API.
 - [x] Add editable product detail views with category, unit, reorder threshold, cost, and optimistic concurrency version.
 - [ ] Add safe sales-order detail editing only for eligible draft orders, with API-side state validation.
-- [ ] Replace single-line transfer and return dialogs with multi-line document editors.
-- [ ] Add clear validation summaries, empty states, loading states, and recoverable error messages.
+- [x] Support multi-line transfer and return documents with per-line quantity and disposition validation.
+- [x] Add loading feedback and recoverable workspace-load errors; continue expanding form-level validation and empty states.
 - [ ] Add tests for role-to-navigation mapping and verify the API rejects unauthorized requests.
 - [ ] Verify the packaged Windows client against the deployed HTTPS API after each release build.
 
