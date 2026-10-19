@@ -208,8 +208,3 @@ public partial class NewSalesOrderWindow : Window
         public decimal LineTotal => Quantity * UnitPrice;
     }
 }
-
-internal static class SalesOrderChoiceExtensions
-{
-    public static bool IsValid(this object? value) => value is NewSalesOrderWindow.ChoiceItem;
-}
