@@ -9,6 +9,7 @@ public static class Policies
     public const string ManageMasterData = "ManageMasterData";
     public const string ReceiveGoods = "ReceiveGoods";
     public const string PostIssue = "PostIssue";
+    public const string ManageSalesOrders = "ManageSalesOrders";
     public const string PostTransfer = "PostTransfer";
     public const string PostAdjustment = "PostAdjustment";
     public const string OverReceive = "OverReceive";
@@ -34,6 +35,8 @@ public static class AuthorizationSetup
                 p.RequireRole(RoleNames.WarehouseOperator, RoleNames.WarehouseManager))
             .AddPolicy(Policies.PostIssue, p =>
                 p.RequireRole(RoleNames.WarehouseOperator, RoleNames.WarehouseManager))
+            .AddPolicy(Policies.ManageSalesOrders, p =>
+                p.RequireRole(RoleNames.Administrator, RoleNames.WarehouseManager, RoleNames.SalesOfficer))
             .AddPolicy(Policies.PostTransfer, p =>
                 p.RequireRole(RoleNames.WarehouseOperator, RoleNames.WarehouseManager))
             .AddPolicy(Policies.PostAdjustment, p => p.RequireRole(RoleNames.WarehouseManager))
