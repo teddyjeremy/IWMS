@@ -24,6 +24,9 @@
                     <Button Content="Customers" Tag="Customers" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
                     <Button Content="Sales orders" Tag="Sales orders" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
                     <Button Content="Fulfillment" Tag="Fulfillment" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button Content="Stock transfers" Tag="Stock transfers" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button Content="Stock counts" Tag="Stock counts" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button Content="Returns" Tag="Returns" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
                     <Button Content="Inventory" Tag="Inventory" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
                     <Button Content="Purchasing" Tag="Purchasing" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
                     <Button Content="Reports" Tag="Reports" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
