@@ -141,7 +141,28 @@ public partial class MainWindow : Window
         {
             StatusText.Text = $"Loading {page.ToLowerInvariant()}...";
             var json = await _api.GetJsonAsync(endpoint);
-            PageContent.Content = CreateDataGrid(json);
+            var dataGrid = CreateDataGrid(json);
+            if (page == "Customers")
+            {
+                var workspace = new DockPanel();
+                var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+                var addButton = new Button { Content = "New customer", Background = System.Windows.Media.Brushes.SteelBlue, Foreground = System.Windows.Media.Brushes.White };
+                addButton.Click += async (_, _) =>
+                {
+                    var dialog = new NewCustomerWindow(_api) { Owner = this };
+                    if (dialog.ShowDialog() == true)
+                        await LoadWorkspaceAsync("Customers");
+                };
+                toolbar.Children.Add(addButton);
+                DockPanel.SetDock(toolbar, Dock.Top);
+                workspace.Children.Add(toolbar);
+                workspace.Children.Add(dataGrid);
+                PageContent.Content = workspace;
+            }
+            else
+            {
+                PageContent.Content = dataGrid;
+            }
             StatusText.Text = $"Loaded {page.ToLowerInvariant()} from the IWMS API.";
         }
         catch (Exception ex)
