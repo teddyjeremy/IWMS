@@ -398,6 +398,64 @@ public partial class MainWindow : Window
         catch (Exception ex) { StatusText.Text = ex.Message; }
     }
 
+    private async Task RunSelectedTransferActionAsync(DataGrid grid, string action)
+    {
+        var id = GetSelectedGuid(grid);
+        if (id is null) { StatusText.Text = "Select a transfer first."; return; }
+        try
+        {
+            if (action == "approve")
+                await _api.PostJsonAsync($"api/stock-transfers/{id}/approve", new { });
+            else if (action == "reject")
+            {
+                var reason = Prompt("Reject transfer", "Reason for rejection:");
+                if (string.IsNullOrWhiteSpace(reason)) return;
+                await _api.PostJsonAsync($"api/stock-transfers/{id}/reject", new { reason });
+            }
+            else if (action == "dispatch")
+                await _api.PostJsonAsync($"api/stock-transfers/{id}/dispatch", new { });
+            else if (action == "receive")
+            {
+                var detail = await _api.GetJsonAsync($"api/stock-transfers/{id}");
+                if (!detail.TryGetProperty("lines", out var lines) || lines.ValueKind != JsonValueKind.Array)
+                    throw new InvalidOperationException("The transfer response did not contain lines.");
+                var receiptLines = lines.EnumerateArray().Select(line => new
+                {
+                    lineId = line.GetProperty("id").GetGuid(),
+                    quantityReceived = line.GetProperty("quantityDispatched").GetDecimal(),
+                    discrepancyNote = (string?)null
+                }).ToList();
+                await _api.PostJsonAsync($"api/stock-transfers/{id}/receive", new { lines = receiptLines });
+            }
+            StatusText.Text = "Transfer action completed.";
+            await LoadWorkspaceAsync("Stock transfers");
+        }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
+    }
+
+    private string? Prompt(string title, string message)
+    {
+        var dialog = new Window
+        {
+            Title = title,
+            Owner = this,
+            Width = 460,
+            Height = 190,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.NoResize
+        };
+        var panel = new StackPanel { Margin = new Thickness(16) };
+        panel.Children.Add(new TextBlock { Text = message, Margin = new Thickness(0, 0, 0, 8) });
+        var input = new TextBox { MinWidth = 400, Margin = new Thickness(0, 0, 0, 12) };
+        panel.Children.Add(input);
+        var submit = new Button { Content = "Continue", Width = 100, HorizontalAlignment = HorizontalAlignment.Right, IsDefault = true };
+        submit.Click += (_, _) => dialog.DialogResult = true;
+        panel.Children.Add(submit);
+        dialog.Content = panel;
+        input.Focus();
+        return dialog.ShowDialog() == true ? input.Text.Trim() : null;
+    }
+
     private async Task DownloadInventoryCsvAsync()
     {
         try
