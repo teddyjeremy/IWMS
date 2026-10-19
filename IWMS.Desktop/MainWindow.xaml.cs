@@ -119,6 +119,15 @@ public partial class MainWindow : Window
             };
             csvButton.Click += async (_, _) => await DownloadInventoryCsvAsync();
             reportPanel.Children.Add(csvButton);
+            var pdfButton = new Button
+            {
+                Content = "Download inventory PDF",
+                Width = 220,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 10, 0, 0)
+            };
+            pdfButton.Click += async (_, _) => await DownloadInventoryPdfAsync();
+            reportPanel.Children.Add(pdfButton);
             PageContent.Content = reportPanel;
             return;
         }
@@ -281,6 +290,26 @@ public partial class MainWindow : Window
         _ => value.ToString()
     };
 
+
+
+    private async Task DownloadInventoryPdfAsync()
+    {
+        try
+        {
+            var bytes = await _api.GetBytesAsync("api/reports/inventory.pdf");
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                FileName = "iwms-inventory.pdf",
+                Filter = "PDF files (*.pdf)|*.pdf"
+            };
+            if (dialog.ShowDialog(this) == true)
+            {
+                await System.IO.File.WriteAllBytesAsync(dialog.FileName, bytes);
+                StatusText.Text = "Inventory PDF saved.";
+            }
+        }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
+    }
 
     private static Guid? GetSelectedGuid(DataGrid grid)
     {
