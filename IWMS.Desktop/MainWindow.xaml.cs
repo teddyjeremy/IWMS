@@ -106,7 +106,7 @@ public partial class MainWindow : Window
         var purchaser = _api.IsInRole("Purchaser");
         var operatorRole = _api.IsInRole("Warehouse Operator");
         var sales = _api.IsInRole("Sales Officer");
-        var viewer = _api.IsInRole("Viewer") || _api.IsInRole("Auditor");
+        var viewer = _api.IsInRole("Viewer") || _api.IsInRole("Auditor") || _api.IsInRole("Viewer/Auditor");
 
         DashboardNavButton.Visibility = Visibility.Visible;
         CustomersNavButton.Visibility = admin || sales ? Visibility.Visible : Visibility.Collapsed;
