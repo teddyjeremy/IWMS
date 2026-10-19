@@ -920,8 +920,7 @@ public partial class MainWindow : Window
             HeadersVisibility = DataGridHeadersVisibility.Column,
             AlternatingRowBackground = System.Windows.Media.Brushes.WhiteSmoke,
             SelectionMode = DataGridSelectionMode.Single,
-            SelectionUnit = DataGridSelectionUnit.FullRow,
-            HeadersVisibility = DataGridHeadersVisibility.Column
+            SelectionUnit = DataGridSelectionUnit.FullRow
         };
         grid.AutoGeneratingColumn += (_, args) =>
         {
@@ -1693,7 +1692,7 @@ public partial class MainWindow : Window
         foreach (DataColumn dataColumn in row.Row.Table.Columns)
         {
             if (dataColumn.ColumnName.Equals(column, StringComparison.OrdinalIgnoreCase))
-                return Convert.ToString(row[dataColumn], CultureInfo.InvariantCulture) ?? string.Empty;
+                return Convert.ToString(row[dataColumn.ColumnName], CultureInfo.InvariantCulture) ?? string.Empty;
         }
         return string.Empty;
     }
