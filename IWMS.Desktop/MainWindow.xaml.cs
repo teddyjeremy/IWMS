@@ -154,9 +154,11 @@ public partial class MainWindow : Window
                 };
                 addButton.Click += async (_, _) =>
                 {
-                    var created = page == "Customers"
-                        ? new NewCustomerWindow(_api) { Owner = this }.ShowDialog()
-                        : new NewSalesOrderWindow(_api) { Owner = this }.ShowDialog();
+                    bool? created;
+                    if (page == "Customers")
+                        created = new NewCustomerWindow(_api) { Owner = this }.ShowDialog();
+                    else
+                        created = new NewSalesOrderWindow(_api) { Owner = this }.ShowDialog();
                     if (created == true)
                         await LoadWorkspaceAsync(page);
                 };
