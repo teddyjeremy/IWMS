@@ -14,7 +14,7 @@
             <DockPanel Margin="18">
                 <StackPanel DockPanel.Dock="Top" Margin="0,8,0,24">
                     <TextBlock Text="IWMS" Foreground="White" FontSize="28" FontWeight="Bold"/>
-                    <TextBlock Text="WAREHOUSE OPERATIONS" Foreground="#AFC6D4" FontSize="10" FontWeight="SemiBold" CharacterSpacing="120" Margin="0,5,0,0"/>
+                    <TextBlock Text="WAREHOUSE OPERATIONS" Foreground="#AFC6D4" FontSize="10" FontWeight="SemiBold" Margin="0,5,0,0"/>
                     <Border Height="1" Background="#315164" Margin="0,20,0,0"/>
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom">
