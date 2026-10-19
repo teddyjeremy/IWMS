@@ -326,7 +326,7 @@ public partial class MainWindow : Window
                             try
                             {
                                 var detail = await _api.GetJsonAsync($"api/sales-orders/{orderId.Value}");
-                                if (!detail.TryGetProperty("status", out var status) || status.GetInt32() != 1)
+                                if (!detail.TryGetProperty("status", out var status) || !string.Equals(status.GetString(), "Draft", StringComparison.OrdinalIgnoreCase))
                                 {
                                     StatusText.Text = "Only draft sales orders can be edited.";
                                     return;
