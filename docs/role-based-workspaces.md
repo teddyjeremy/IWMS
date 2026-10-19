@@ -26,7 +26,8 @@ The exact permissions for every API endpoint must continue to be enforced by ASP
 - [x] Add a multi-line sales-order editor to the desktop client and expose draft editing for draft orders; API checks and version-based concurrency remain in force.
 - [x] Replace single-line transfer and return entry with multi-line document payloads.
 - [ ] Finish clear validation summaries and empty states; loading feedback and recoverable workspace errors are implemented.
-- [ ] Add tests for role-to-navigation mapping and verify the API rejects unauthorized requests.
+- [x] Add policy-level tests proving Sales Officer order permissions remain separate from warehouse fulfillment permissions.
+- [ ] Add role-to-navigation mapping tests and endpoint-level integration tests for unauthorized requests.
 - [ ] Verify the packaged Windows client against the deployed HTTPS API after each release build.
 
 ## Role-map safety
