@@ -1,9 +1,10 @@
-﻿using IWMS.Domain.Common;
+﻿using IWMS.Application.Audit;
+using IWMS.Application.Common;
+using IWMS.Application.Tracking;
+using IWMS.Domain.Common;
 using IWMS.Domain.Entities;
 using IWMS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
-using IWMS.Application.Common;
-using IWMS.Application.Audit;
 
 namespace IWMS.Application.Receiving;
 
@@ -11,11 +12,13 @@ public class GoodsReceivingService
 {
     private readonly IAppDbContext _db;
     private readonly AuditLogger _audit;
+    private readonly LotTrackingService _lots;
 
-    public GoodsReceivingService(IAppDbContext db, AuditLogger audit)
+    public GoodsReceivingService(IAppDbContext db, AuditLogger audit, LotTrackingService lots)
     {
         _db = db;
         _audit = audit;
+        _lots = lots;
     }
 
     public async Task<ReceiptResult> ReceiveAsync(
@@ -97,6 +100,9 @@ public class GoodsReceivingService
                  sourceLineId: receiptLine.Id);
 
                 _db.InventoryMovements.Add(movement);
+                await _lots.ApplyIncreaseAsync(
+                    orderLine.ProductId, line.StorageLocationId, line.QuantityAccepted,
+                    line.LotNumber, line.ExpiryUtc, line.Serials, ct);
             }
         }
 

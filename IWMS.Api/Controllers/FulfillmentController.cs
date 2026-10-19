@@ -3,6 +3,7 @@ using IWMS.Application.Audit;
 using IWMS.Domain.Common;
 using IWMS.Domain.Entities;
 using IWMS.Domain.Enums;
+using IWMS.Application.Tracking;
 using IWMS.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,11 +18,13 @@ public sealed class FulfillmentController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly AuditLogger _audit;
+    private readonly LotTrackingService _lots;
 
-    public FulfillmentController(AppDbContext db, AuditLogger audit)
+    public FulfillmentController(AppDbContext db, AuditLogger audit, LotTrackingService lots)
     {
         _db = db;
         _audit = audit;
+        _lots = lots;
     }
 
     [HttpGet("shipments")]
@@ -315,6 +318,8 @@ public sealed class FulfillmentController : ControllerBase
                 idempotencyKey: line.Id,
                 sourceLineId: line.Id);
             _db.InventoryMovements.Add(movement);
+            await _lots.ApplyDecreaseAsync(
+                line.SalesOrderLine.ProductId, line.StorageLocationId, line.QuantityPicked, null, null, ct);
             line.SalesOrderLine.QuantityDispatched += line.QuantityPicked;
         }
 

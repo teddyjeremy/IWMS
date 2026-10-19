@@ -7,7 +7,8 @@ public record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, int
 public record ProductListItem(
     Guid Id, string Sku, string Name, string Category, UnitOfMeasure BaseUnit,
     decimal OnHand, decimal Reserved, decimal Available,
-    decimal ReorderLevel, bool IsLowStock, bool IsActive);
+    decimal ReorderLevel, bool IsLowStock, bool IsActive,
+    bool TrackLots = false, bool TrackSerials = false, string? Barcode = null);
 
 public record StockByLocation(
     Guid StorageLocationId, string Warehouse, string Location,
@@ -17,12 +18,14 @@ public record ProductDetail(
     Guid Id, string Sku, string Name, string Description, string? Barcode,
     Guid CategoryId, string Category, UnitOfMeasure BaseUnit,
     decimal? CostPrice, decimal ReorderLevel, bool IsActive,
-    List<StockByLocation> Stock, uint Version);
+    List<StockByLocation> Stock, uint Version,
+    bool TrackLots = false, bool TrackSerials = false);
 
 public record SaveProductRequest(
     string Sku, string Name, string Description, string? Barcode,
     Guid CategoryId, UnitOfMeasure BaseUnit,
-    decimal? CostPrice, decimal ReorderLevel, bool IsActive, uint Version);
+    decimal? CostPrice, decimal ReorderLevel, bool IsActive, uint Version,
+    bool TrackLots = false, bool TrackSerials = false);
 
 public record CategoryItem(Guid Id, string Name, string Description);
 public record SaveCategoryRequest(string Name, string Description);

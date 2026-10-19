@@ -159,6 +159,15 @@ public sealed class ApiClient
             throw new InvalidOperationException($"Request failed ({(int)response.StatusCode}) for {path}.");
         return await response.Content.ReadAsByteArrayAsync(ct);
     }
+
+    public async Task<string> PostForTextAsync(string path, object payload, CancellationToken ct = default)
+    {
+        using var response = await _http.PostAsJsonAsync(path, payload, JsonOptions, ct);
+        var detail = await response.Content.ReadAsStringAsync(ct);
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Request failed ({(int)response.StatusCode}): {detail}");
+        return detail;
+    }
 }
 
 public sealed record DashboardDto(

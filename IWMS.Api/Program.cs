@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using IWMS.Application.Purchasing;
+using IWMS.Application.Tracking;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,6 +52,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
 builder.Services.AddScoped<AuditLogger>();
+builder.Services.AddScoped<LotTrackingService>();
 builder.Services.AddScoped<GoodsReceivingService>();
 builder.Services.AddScoped<StockLedgerService>();
 

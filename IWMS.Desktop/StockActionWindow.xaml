@@ -1,7 +1,7 @@
 <Window x:Class="IWMS.Desktop.StockActionWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Stock action" Height="520" Width="560" MinWidth="480"
+        Title="Stock action" Height="760" Width="560" MinWidth="480"
         WindowStartupLocation="CenterOwner" Background="{StaticResource PageBackground}" ResizeMode="NoResize">
     <Grid Margin="24">
         <Grid.RowDefinitions>
@@ -26,6 +26,11 @@
             </StackPanel>
             <TextBlock x:Name="ReferenceLabel" Text="Reference number *"/>
             <TextBox x:Name="ReferenceBox"/>
+            <TextBlock Text="Lot or batch (required when the product is lot-tracked)"/>
+            <TextBox x:Name="LotBox"/>
+            <TextBlock Text="Serial numbers, comma separated"/>
+            <TextBox x:Name="SerialsBox"/>
+            <Button Content="Suggest FEFO lots" Click="Suggest_Click" HorizontalAlignment="Left" Margin="0,0,0,8"/>
             <TextBlock Text="Reason *"/>
             <TextBox x:Name="ReasonBox" AcceptsReturn="True" Height="60" TextWrapping="Wrap"/>
             <TextBlock x:Name="ErrorText" Foreground="#B42318" TextWrapping="Wrap"/>

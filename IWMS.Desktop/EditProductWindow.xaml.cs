@@ -74,6 +74,8 @@ public partial class EditProductWindow : Window
             CostPriceBox.Text = product.GetProperty("costPrice").ToString();
             ReorderLevelBox.Text = product.GetProperty("reorderLevel").ToString();
             ActiveBox.IsChecked = product.GetProperty("isActive").GetBoolean();
+            TrackLotsBox.IsChecked = product.TryGetProperty("trackLots", out var trackLots) && trackLots.ValueKind == JsonValueKind.True;
+            TrackSerialsBox.IsChecked = product.TryGetProperty("trackSerials", out var trackSerials) && trackSerials.ValueKind == JsonValueKind.True;
             _version = product.GetProperty("version").GetUInt32();
             SaveButton.IsEnabled = true;
         }
@@ -132,6 +134,8 @@ public partial class EditProductWindow : Window
                     costPrice,
                     reorderLevel,
                     isActive = ActiveBox.IsChecked == true,
+                    trackLots = TrackLotsBox.IsChecked == true,
+                    trackSerials = TrackSerialsBox.IsChecked == true,
                     version = 0
                 });
             else
@@ -146,6 +150,8 @@ public partial class EditProductWindow : Window
                     costPrice,
                     reorderLevel,
                     isActive = ActiveBox.IsChecked == true,
+                    trackLots = TrackLotsBox.IsChecked == true,
+                    trackSerials = TrackSerialsBox.IsChecked == true,
                     version = _version
                 });
             DialogResult = true;

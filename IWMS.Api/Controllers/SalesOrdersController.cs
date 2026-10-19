@@ -1,3 +1,4 @@
+using IWMS.Api.Reports;
 using IWMS.Api.Security;
 using IWMS.Application;
 using IWMS.Application.Audit;
@@ -92,6 +93,51 @@ public sealed class SalesOrdersController : ControllerBase
             .SingleOrDefaultAsync(ct);
 
         return order is null ? NotFound() : Ok(order);
+    }
+
+    [HttpGet("{id:guid}/delivery-note")]
+    [Authorize(Policy = Policies.ViewData)]
+    public async Task<IActionResult> DeliveryNote(Guid id, CancellationToken ct)
+    {
+        var order = await _db.SalesOrders.AsNoTracking()
+            .Where(o => o.Id == id)
+            .Select(o => new
+            {
+                o.OrderNumber,
+                Customer = o.Customer.Name,
+                o.Status,
+                o.RequiredDateUtc,
+                o.Notes,
+                Lines = o.Lines.OrderBy(l => l.Product.Sku).Select(l => new
+                {
+                    l.Product.Sku,
+                    l.Product.Name,
+                    l.QuantityOrdered,
+                    l.QuantityDispatched,
+                    l.UnitPrice
+                }).ToList()
+            })
+            .SingleOrDefaultAsync(ct);
+        if (order is null)
+            return NotFound();
+
+        var lines = new List<string>
+        {
+            "IWMS Delivery Note",
+            order.OrderNumber,
+            $"Customer: {order.Customer}",
+            $"Status: {order.Status}",
+            $"Required date UTC: {order.RequiredDateUtc:yyyy-MM-dd}",
+            string.IsNullOrWhiteSpace(order.Notes) ? "" : $"Notes: {order.Notes}",
+            "",
+            "SKU | Product | Ordered | Dispatched | Unit price",
+            new string('-', 90)
+        };
+        foreach (var line in order.Lines)
+            lines.Add($"{line.Sku} | {line.Name} | {line.QuantityOrdered} | {line.QuantityDispatched} | {line.UnitPrice}");
+        lines.Add("");
+        lines.Add("Received by: ____________________    Date: ____________________");
+        return File(SimplePdfWriter.Create(lines), "application/pdf", $"{order.OrderNumber}-delivery-note.pdf");
     }
 
     [HttpPost]

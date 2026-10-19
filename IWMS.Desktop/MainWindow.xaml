@@ -27,6 +27,7 @@
                         <StackPanel>
                             <TextBlock Text="OVERVIEW" Foreground="#7F9AAD" FontSize="10" FontWeight="Bold" Margin="12,4,0,6"/>
                             <Button x:Name="DashboardNavButton" Content="Dashboard" Tag="Dashboard" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
+                            <Button x:Name="AlertsNavButton" Content="Alerts" Tag="Alerts" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <Button x:Name="ReportsNavButton" Content="Reports" Tag="Reports" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <TextBlock x:Name="CommercialHeading" Text="COMMERCIAL" Foreground="#7F9AAD" FontSize="10" FontWeight="Bold" Margin="12,14,0,6"/>
                             <Button x:Name="CustomersNavButton" Content="Customers" Tag="Customers" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
@@ -35,6 +36,7 @@
                             <Button x:Name="PurchasingNavButton" Content="Purchasing" Tag="Purchasing" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <TextBlock x:Name="WarehouseHeading" Text="WAREHOUSE" Foreground="#7F9AAD" FontSize="10" FontWeight="Bold" Margin="12,14,0,6"/>
                             <Button x:Name="InventoryNavButton" Content="Inventory" Tag="Inventory" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
+                            <Button x:Name="WarehousesNavButton" Content="Warehouses" Tag="Warehouses" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <Button x:Name="FulfillmentNavButton" Content="Fulfillment" Tag="Fulfillment" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <Button x:Name="TransfersNavButton" Content="Transfers" Tag="Stock transfers" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <Button x:Name="CountsNavButton" Content="Stock counts" Tag="Stock counts" Style="{StaticResource NavButton}" Click="Navigate_Click"/>

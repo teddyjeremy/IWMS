@@ -32,6 +32,9 @@ public interface IAppDbContext
     DbSet<StockCountLine> StockCountLines { get; }
     DbSet<ReturnRecord> ReturnRecords { get; }
     DbSet<ReturnRecordLine> ReturnRecordLines { get; }
+    DbSet<InventoryLot> InventoryLots { get; }
+    DbSet<TrackedSerial> TrackedSerials { get; }
+    DbSet<TransferLotLine> TransferLotLines { get; }
 
     void SetOriginalVersion<TEntity>(TEntity entity, uint version) where TEntity : BaseEntity;
 

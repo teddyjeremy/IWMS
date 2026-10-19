@@ -105,6 +105,9 @@ public partial class ReceiveGoodsWindow : Window
         var location = new ComboBox { ItemsSource = locations, DisplayMemberPath = "Label", Margin = new Thickness(0, 0, 0, 0) };
         if (locations.Count > 0) location.SelectedIndex = 0;
         var note = new TextBox { Margin = new Thickness(0, 8, 0, 0) };
+        var lot = new TextBox { Margin = new Thickness(0, 4, 8, 0) };
+        var expiry = new TextBox { Margin = new Thickness(0, 4, 8, 0) };
+        var serials = new TextBox { Margin = new Thickness(0, 4, 0, 0) };
         Grid.SetRow(accepted, 1);
         Grid.SetRow(rejected, 1);
         Grid.SetColumn(rejected, 1);
@@ -114,9 +117,30 @@ public partial class ReceiveGoodsWindow : Window
         grid.Children.Add(accepted);
         grid.Children.Add(rejected);
         grid.Children.Add(location);
-        card.Child = new StackPanel { Children = { grid, new TextBlock { Text = "Discrepancy note (required if rejected or short)", Margin = new Thickness(0, 8, 0, 2), Foreground = System.Windows.Media.Brushes.Gray }, note } };
+        var extras = new Grid { Margin = new Thickness(0, 8, 0, 0) };
+        extras.ColumnDefinitions.Add(new ColumnDefinition());
+        extras.ColumnDefinitions.Add(new ColumnDefinition());
+        extras.ColumnDefinitions.Add(new ColumnDefinition());
+        extras.Children.Add(new StackPanel { Children = { new TextBlock { Text = "Lot / batch" }, lot } });
+        Grid.SetColumn(extras.Children[0], 0);
+        var expiryPanel = new StackPanel { Margin = new Thickness(8, 0, 8, 0), Children = { new TextBlock { Text = "Expiry UTC" }, expiry } };
+        Grid.SetColumn(expiryPanel, 1);
+        extras.Children.Add(expiryPanel);
+        var serialPanel = new StackPanel { Children = { new TextBlock { Text = "Serials" }, serials } };
+        Grid.SetColumn(serialPanel, 2);
+        extras.Children.Add(serialPanel);
+        card.Child = new StackPanel
+        {
+            Children =
+            {
+                grid,
+                extras,
+                new TextBlock { Text = "Discrepancy note (required if rejected or short)", Margin = new Thickness(0, 8, 0, 2), Foreground = System.Windows.Media.Brushes.Gray },
+                note
+            }
+        };
         LinesHost.Children.Add(card);
-        return new ReceiptLineEditor(line.GetProperty("id").GetGuid(), outstanding, accepted, rejected, location, note);
+        return new ReceiptLineEditor(line.GetProperty("id").GetGuid(), outstanding, accepted, rejected, location, note, lot, expiry, serials);
     }
 
     private async void Save_Click(object sender, RoutedEventArgs e)
@@ -149,7 +173,10 @@ public partial class ReceiveGoodsWindow : Window
                 storageLocationId = locationId,
                 quantityAccepted = accepted,
                 quantityRejected = rejected,
-                discrepancyNote = editor.Note.Text.Trim()
+                discrepancyNote = editor.Note.Text.Trim(),
+                lotNumber = string.IsNullOrWhiteSpace(editor.Lot.Text) ? null : editor.Lot.Text.Trim(),
+                expiryUtc = string.IsNullOrWhiteSpace(editor.Expiry.Text) ? null : editor.Expiry.Text.Trim(),
+                serials = string.IsNullOrWhiteSpace(editor.Serials.Text) ? null : editor.Serials.Text.Trim()
             });
         }
 
@@ -183,5 +210,5 @@ public partial class ReceiveGoodsWindow : Window
     private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
 
     private sealed record ChoiceItem(string Id, string Label);
-    private sealed record ReceiptLineEditor(Guid LineId, decimal Outstanding, TextBox Accepted, TextBox Rejected, ComboBox Location, TextBox Note);
+    private sealed record ReceiptLineEditor(Guid LineId, decimal Outstanding, TextBox Accepted, TextBox Rejected, ComboBox Location, TextBox Note, TextBox Lot, TextBox Expiry, TextBox Serials);
 }

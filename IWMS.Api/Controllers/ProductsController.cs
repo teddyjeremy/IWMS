@@ -3,6 +3,7 @@ using IWMS.Api.Dtos;
 using IWMS.Api.Security;
 using IWMS.Application;
 using IWMS.Application.Audit;
+using IWMS.Application.Tracking;
 using IWMS.Domain.Common;
 using IWMS.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -17,11 +18,13 @@ public class ProductsController : ControllerBase
 {
     private readonly IAppDbContext _db;
     private readonly AuditLogger _audit;
+    private readonly LotTrackingService _lots;
 
-    public ProductsController(IAppDbContext db, AuditLogger audit)
+    public ProductsController(IAppDbContext db, AuditLogger audit, LotTrackingService lots)
     {
         _db = db;
         _audit = audit;
+        _lots = lots;
     }
 
     // GET: api/products
@@ -73,7 +76,10 @@ public class ProductsController : ControllerBase
                 (p.Balances.Sum(
                     b => (decimal?)(b.OnHand - b.Reserved)) ?? 0m)
                     <= (p.ReorderLevel ?? 0m),
-                p.IsActive))
+                p.IsActive,
+                p.TrackLots,
+                p.TrackSerials,
+                p.Barcode))
             .ToPagedAsync(page, pageSize, ct);
 
         return Ok(result);
@@ -111,7 +117,9 @@ public class ProductsController : ControllerBase
                         b.Reserved,
                         b.OnHand - b.Reserved))
                     .ToList(),
-                p.Version))
+                p.Version,
+                p.TrackLots,
+                p.TrackSerials))
             .SingleOrDefaultAsync(ct);
 
         if (product is null)
@@ -141,7 +149,9 @@ public class ProductsController : ControllerBase
             BaseUnit = request.BaseUnit,
             CostPrice = request.CostPrice,
             ReorderLevel = request.ReorderLevel,
-            IsActive = request.IsActive
+            IsActive = request.IsActive,
+            TrackLots = request.TrackLots,
+            TrackSerials = request.TrackSerials
         };
 
         _db.Products.Add(product);
@@ -192,6 +202,8 @@ public class ProductsController : ControllerBase
         product.CostPrice = request.CostPrice;
         product.ReorderLevel = request.ReorderLevel;
         product.IsActive = request.IsActive;
+        product.TrackLots = request.TrackLots;
+        product.TrackSerials = request.TrackSerials;
         product.UpdatedAtUtc = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
@@ -247,5 +259,40 @@ public class ProductsController : ControllerBase
 
         if (!categoryExists)
             throw new DomainException("Category not found.");
+
+        if (!string.IsNullOrWhiteSpace(request.Barcode))
+        {
+            var barcode = request.Barcode.Trim();
+            var barcodeTaken = await _db.Products.AnyAsync(
+                p => p.Barcode == barcode && p.Id != existingId, ct);
+            if (barcodeTaken)
+                throw new DomainException($"Barcode '{barcode}' is already assigned to another product.");
+        }
+    }
+
+    [HttpGet("lookup")]
+    [Authorize(Policy = Policies.ViewData)]
+    public async Task<ActionResult<ProductDetail>> Lookup([FromQuery] string barcode, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(barcode))
+            throw new DomainException("Scan or enter a barcode.");
+
+        var id = await _db.Products.AsNoTracking()
+            .Where(p => p.Barcode == barcode.Trim())
+            .Select(p => (Guid?)p.Id)
+            .SingleOrDefaultAsync(ct);
+        if (id is null)
+            return NotFound();
+        return await Get(id.Value, ct);
+    }
+
+    [HttpGet("{id:guid}/fefo")]
+    [Authorize(Policy = Policies.ViewData)]
+    public async Task<ActionResult<IReadOnlyList<FefoSuggestion>>> Fefo(
+        Guid id, [FromQuery] Guid locationId, [FromQuery] decimal quantity, CancellationToken ct)
+    {
+        if (locationId == Guid.Empty)
+            throw new DomainException("Choose a storage location.");
+        return Ok(await _lots.SuggestAsync(id, locationId, quantity, ct));
     }
 }

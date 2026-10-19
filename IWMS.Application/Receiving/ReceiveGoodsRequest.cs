@@ -13,6 +13,9 @@ public record ReceiveGoodsLine(
     Guid StorageLocationId,
     decimal QuantityAccepted,
     decimal QuantityRejected,
-    string DiscrepancyNote);
+    string DiscrepancyNote,
+    string? LotNumber = null,
+    DateTime? ExpiryUtc = null,
+    string? Serials = null);
 
 public record ReceiptResult(Guid GoodsReceiptId, string ReceiptNumber, bool WasDuplicate);

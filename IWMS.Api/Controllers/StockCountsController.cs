@@ -3,6 +3,7 @@ using IWMS.Application.Audit;
 using IWMS.Domain.Common;
 using IWMS.Domain.Entities;
 using IWMS.Domain.Enums;
+using IWMS.Application.Tracking;
 using IWMS.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,11 +18,13 @@ public sealed class StockCountsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly AuditLogger _audit;
+    private readonly LotTrackingService _lots;
 
-    public StockCountsController(AppDbContext db, AuditLogger audit)
+    public StockCountsController(AppDbContext db, AuditLogger audit, LotTrackingService lots)
     {
         _db = db;
         _audit = audit;
+        _lots = lots;
     }
 
     [HttpGet]
@@ -52,6 +55,13 @@ public sealed class StockCountsController : ControllerBase
     [HttpGet("{countId:guid}")]
     public async Task<ActionResult> Get(Guid countId, CancellationToken ct)
     {
+        var blind = await _db.StockCountSessions.AsNoTracking()
+            .Where(c => c.Id == countId)
+            .Select(c => (StockCountStatus?)c.Status)
+            .SingleOrDefaultAsync(ct);
+        if (blind is null) return NotFound();
+        var hideBookQuantity = blind == StockCountStatus.Counting;
+
         var count = await _db.StockCountSessions.AsNoTracking()
             .Where(c => c.Id == countId)
             .Select(c => new
@@ -74,15 +84,15 @@ public sealed class StockCountsController : ControllerBase
                         ProductName = l.Product.Name,
                         l.StorageLocationId,
                         Location = l.StorageLocation.Code,
-                        l.SystemQuantity,
+                        SystemQuantity = hideBookQuantity ? null : (decimal?)l.SystemQuantity,
                         l.CountedQuantity,
-                        Variance = l.CountedQuantity == null ? null : l.CountedQuantity - l.SystemQuantity,
+                        Variance = hideBookQuantity || l.CountedQuantity == null ? null : l.CountedQuantity - l.SystemQuantity,
                         l.VarianceReason,
                         l.PostedMovementId
                     }).ToList()
-            }).SingleOrDefaultAsync(ct);
+            }).SingleAsync(ct);
 
-        return count is null ? NotFound() : Ok(count);
+        return Ok(count);
     }
 
     [HttpPost]
@@ -154,8 +164,8 @@ public sealed class StockCountsController : ControllerBase
         var count = await _db.StockCountSessions.Include(c => c.Lines)
             .SingleOrDefaultAsync(c => c.Id == countId, ct);
         if (count is null) return NotFound();
-        if (count.Status != StockCountStatus.Counting)
-            throw new DomainException("Count quantities can only be entered while the session is in Counting status.");
+        if (count.Status is not (StockCountStatus.Counting or StockCountStatus.PendingReview))
+            throw new DomainException("Count quantities can only be entered while the session is counting or in variance review.");
 
         foreach (var input in request.Lines)
         {
@@ -231,6 +241,16 @@ public sealed class StockCountsController : ControllerBase
                 count.CountNumber,
                 sourceLineId: line.Id);
             _db.InventoryMovements.Add(movement);
+            var tracking = await _db.Products.AsNoTracking()
+                .Where(p => p.Id == line.ProductId)
+                .Select(p => new { p.Sku, p.TrackSerials })
+                .SingleAsync(ct);
+            if (tracking.TrackSerials)
+                throw new DomainException($"Serial-tracked product {tracking.Sku} must be adjusted from Inventory so each serial number is captured.");
+            if (variance > 0)
+                await _lots.ApplyIncreaseAsync(line.ProductId, line.StorageLocationId, variance, "CYCLE-COUNT", null, null, ct);
+            else
+                await _lots.ApplyDecreaseAsync(line.ProductId, line.StorageLocationId, Math.Abs(variance), null, null, ct);
             line.PostedMovementId = movement.Id;
         }
 

@@ -285,6 +285,52 @@ namespace IWMS.Infrastructure.Migrations
                     b.ToTable("InventoryBalances");
                 });
 
+            modelBuilder.Entity("IWMS.Domain.Entities.InventoryLot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ExpiryUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LotNumber")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("QuantityOnHand")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<Guid>("StorageLocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StorageLocationId");
+
+                    b.HasIndex("ProductId", "StorageLocationId", "LotNumber")
+                        .IsUnique();
+
+                    b.ToTable("InventoryLots");
+                });
+
             modelBuilder.Entity("IWMS.Domain.Entities.InventoryMovement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -368,7 +414,8 @@ namespace IWMS.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("Barcode")
-                        .HasColumnType("text");
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
 
                     b.Property<int>("BaseUnit")
                         .HasColumnType("integer");
@@ -403,6 +450,12 @@ namespace IWMS.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<bool>("TrackLots")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("TrackSerials")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -413,6 +466,10 @@ namespace IWMS.Infrastructure.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Barcode")
+                        .IsUnique()
+                        .HasFilter("\"Barcode\" IS NOT NULL AND \"Barcode\" <> ''");
 
                     b.HasIndex("CategoryId");
 
@@ -1235,6 +1292,88 @@ namespace IWMS.Infrastructure.Migrations
                     b.ToTable("Suppliers");
                 });
 
+            modelBuilder.Entity("IWMS.Domain.Entities.TrackedSerial", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Serial")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("StorageLocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StorageLocationId");
+
+                    b.HasIndex("ProductId", "Serial")
+                        .IsUnique();
+
+                    b.ToTable("TrackedSerials");
+                });
+
+            modelBuilder.Entity("IWMS.Domain.Entities.TransferLotLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ExpiryUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LotNumber")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<Guid>("StockTransferLineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StockTransferLineId");
+
+                    b.ToTable("TransferLotLines");
+                });
+
             modelBuilder.Entity("IWMS.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1400,6 +1539,25 @@ namespace IWMS.Infrastructure.Migrations
                 {
                     b.HasOne("IWMS.Domain.Entities.Product", "Product")
                         .WithMany("Balances")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("IWMS.Domain.Entities.StorageLocation", "StorageLocation")
+                        .WithMany()
+                        .HasForeignKey("StorageLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("StorageLocation");
+                });
+
+            modelBuilder.Entity("IWMS.Domain.Entities.InventoryLot", b =>
+                {
+                    b.HasOne("IWMS.Domain.Entities.Product", "Product")
+                        .WithMany()
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -1796,6 +1954,35 @@ namespace IWMS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("IWMS.Domain.Entities.TrackedSerial", b =>
+                {
+                    b.HasOne("IWMS.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("IWMS.Domain.Entities.StorageLocation", "StorageLocation")
+                        .WithMany()
+                        .HasForeignKey("StorageLocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Product");
+
+                    b.Navigation("StorageLocation");
+                });
+
+            modelBuilder.Entity("IWMS.Domain.Entities.TransferLotLine", b =>
+                {
+                    b.HasOne("IWMS.Domain.Entities.StockTransferLine", "StockTransferLine")
+                        .WithMany()
+                        .HasForeignKey("StockTransferLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("StockTransferLine");
                 });
 
             modelBuilder.Entity("RoleUser", b =>

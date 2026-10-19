@@ -107,7 +107,9 @@ public partial class StockActionWindow : Window
                     isIncrease = IncreaseBox.IsChecked == true,
                     reason = ReasonBox.Text.Trim(),
                     performedByUserId = Guid.Empty,
-                    idempotencyKey = Guid.NewGuid()
+                    idempotencyKey = Guid.NewGuid(),
+                    lotNumber = string.IsNullOrWhiteSpace(LotBox.Text) ? null : LotBox.Text.Trim(),
+                    serials = string.IsNullOrWhiteSpace(SerialsBox.Text) ? null : SerialsBox.Text.Trim()
                 });
             }
             else
@@ -126,7 +128,9 @@ public partial class StockActionWindow : Window
                     performedByUserId = Guid.Empty,
                     idempotencyKey = Guid.NewGuid(),
                     referenceNumber = ReferenceBox.Text.Trim(),
-                    reason = ReasonBox.Text.Trim()
+                    reason = ReasonBox.Text.Trim(),
+                    lotNumber = string.IsNullOrWhiteSpace(LotBox.Text) ? null : LotBox.Text.Trim(),
+                    serials = string.IsNullOrWhiteSpace(SerialsBox.Text) ? null : SerialsBox.Text.Trim()
                 });
             }
             DialogResult = true;
@@ -136,6 +140,35 @@ public partial class StockActionWindow : Window
             ErrorText.Text = ex.Message;
             SaveButton.IsEnabled = true;
         }
+    }
+
+    private async void Suggest_Click(object sender, RoutedEventArgs e)
+    {
+        ErrorText.Text = string.Empty;
+        if (ProductBox.SelectedItem is not ChoiceItem product || !Guid.TryParse(product.Id, out var productId) ||
+            LocationBox.SelectedItem is not ChoiceItem location || !Guid.TryParse(location.Id, out var locationId))
+        {
+            ErrorText.Text = "Choose a product and a storage location first.";
+            return;
+        }
+        if (!decimal.TryParse(QuantityBox.Text, NumberStyles.Number, CultureInfo.InvariantCulture, out var quantity) || quantity <= 0)
+        {
+            ErrorText.Text = "Enter the quantity to pick.";
+            return;
+        }
+        try
+        {
+            var picks = await _api.GetJsonAsync($"api/products/{productId}/fefo?locationId={locationId}&quantity={quantity.ToString(CultureInfo.InvariantCulture)}");
+            if (picks.ValueKind != JsonValueKind.Array || picks.GetArrayLength() == 0)
+            {
+                ErrorText.Text = "No lots are available at this location.";
+                return;
+            }
+            var summary = string.Join(", ", picks.EnumerateArray().Select(p => $"{p.GetProperty("lotNumber").GetString()} × {p.GetProperty("quantity").GetDecimal()}"));
+            LotBox.Text = picks[0].GetProperty("lotNumber").GetString();
+            ErrorText.Text = "FEFO suggestion: " + summary;
+        }
+        catch (Exception ex) { ErrorText.Text = ex.Message; }
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;

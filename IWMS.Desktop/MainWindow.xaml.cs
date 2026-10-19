@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private bool _showShipments;
     private string _currentPage = "Dashboard";
     private int _reportDays = 30;
+    private string _listSearch = "";
 
     public MainWindow()
     {
@@ -74,6 +75,7 @@ public partial class MainWindow : Window
         if (sender is not Button button || button.Tag is not string page ||
             button.Visibility != Visibility.Visible) return;
         if (page == "Fulfillment") _showShipments = false;
+        if (page != _currentPage) _listSearch = "";
         await OpenPageAsync(page);
     }
 
@@ -82,6 +84,8 @@ public partial class MainWindow : Window
         if (!_api.IsSignedIn) return;
         if (_currentPage == "Dashboard") await LoadDashboardAsync();
         else if (_currentPage == "Reports") await ShowReportsAsync();
+        else if (_currentPage == "Alerts") await ShowAlertsAsync();
+        else if (_currentPage == "Warehouses") await ShowWarehousesAsync();
         else await LoadWorkspaceAsync(_currentPage);
     }
 
@@ -91,6 +95,8 @@ public partial class MainWindow : Window
         PageTitle.Text = page switch
         {
             "Reports" => "Reports & exports",
+            "Alerts" => "Alerts",
+            "Warehouses" => "Warehouses and bins",
             "Stock transfers" => "Stock transfers",
             _ => page
         };
@@ -108,13 +114,17 @@ public partial class MainWindow : Window
             "Receipts" => "Goods receipts posted against purchase orders",
             "Movements" => "Immutable ledger of every stock change",
             "Audit" => "Who changed what, and why",
-            "Reports" => "Movement charts and inventory exports",
+            "Reports" => "Movement charts, stock value, dead stock, ABC and supplier fill rate",
+            "Alerts" => "Low stock, purchase orders waiting for approval, and overdue deliveries",
+            "Warehouses" => "Create warehouses and storage bins",
             "Users" => "Manage user accounts, roles and access",
             _ => "Inventory position, workload and movement trend"
         };
         HighlightNav(page);
         if (page == "Dashboard") await LoadDashboardAsync();
         else if (page == "Reports") await ShowReportsAsync();
+        else if (page == "Alerts") await ShowAlertsAsync();
+        else if (page == "Warehouses") await ShowWarehousesAsync();
         else await LoadWorkspaceAsync(page);
     }
 
@@ -129,6 +139,8 @@ public partial class MainWindow : Window
         var viewer = _api.IsInRole("Viewer") || _api.IsInRole("Auditor") || _api.IsInRole("Viewer/Auditor");
 
         DashboardNavButton.Visibility = Visibility.Visible;
+        AlertsNavButton.Visibility = Visibility.Visible;
+        WarehousesNavButton.Visibility = admin || manager || operatorRole || purchaser ? Visibility.Visible : Visibility.Collapsed;
         CustomersNavButton.Visibility = admin || sales ? Visibility.Visible : Visibility.Collapsed;
         SalesOrdersNavButton.Visibility = admin || sales || manager || operatorRole ? Visibility.Visible : Visibility.Collapsed;
         SuppliersNavButton.Visibility = admin || purchaser || manager ? Visibility.Visible : Visibility.Collapsed;
@@ -229,6 +241,7 @@ public partial class MainWindow : Window
             }
             shell.Children.Add(cards);
             shell.Children.Add(await BuildTrendCardAsync(30, "Movement trend · last 30 days", "Teal bars are receipts. Orange bars are issues. Values come from the inventory ledger."));
+            shell.Children.Add(await BuildAlertsPanelAsync());
 
             var contentGrid = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, 0, 18) };
             var workload = new StackPanel();
@@ -318,6 +331,7 @@ public partial class MainWindow : Window
             "Users" => "api/users",
             _ => string.Empty
         };
+        endpoint = WithSearch(page, endpoint);
 
         if (string.IsNullOrEmpty(endpoint))
         {
@@ -341,6 +355,7 @@ public partial class MainWindow : Window
             {
                 var workspace = new DockPanel();
                 var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+                AddSearch(toolbar, page);
                 if (page is "Customers" or "Sales orders")
                 {
                     var canManageMasterData = _api.IsInRole("Administrator") || _api.IsInRole("Warehouse Manager");
@@ -439,6 +454,9 @@ public partial class MainWindow : Window
                         cancelOrderButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "cancel-draft", "Sales orders");
                         toolbar.Children.Add(confirmButton);
                         toolbar.Children.Add(cancelOrderButton);
+                        var deliveryNote = ActionButton("Delivery note PDF");
+                        deliveryNote.Click += async (_, _) => await DownloadSelectedPdfAsync(dataGrid, "api/sales-orders/{id}/delivery-note", "delivery-note.pdf");
+                        toolbar.Children.Add(deliveryNote);
                     }
                 }
                 else if (page == "Inventory")
@@ -503,7 +521,39 @@ public partial class MainWindow : Window
                     }
                     var movementsButton = ActionButton("Open movements");
                     movementsButton.Click += async (_, _) => await OpenPageAsync("Movements");
+                    var scanBox = new TextBox { Width = 180, Margin = new Thickness(0, 0, 8, 8), ToolTip = "USB scanner input lands here. Press Find." };
+                    var findBarcode = ActionButton("Find barcode");
+                    findBarcode.Click += async (_, _) =>
+                    {
+                        if (string.IsNullOrWhiteSpace(scanBox.Text)) { StatusText.Text = "Scan or type a barcode first."; return; }
+                        try
+                        {
+                            var product = await _api.GetJsonAsync("api/products/lookup?barcode=" + Uri.EscapeDataString(scanBox.Text.Trim()));
+                            StatusText.Text = $"Barcode matches {product.GetProperty("sku").GetString()} — {product.GetProperty("name").GetString()}.";
+                            if (canManageCatalogue && Guid.TryParse(product.GetProperty("id").GetString(), out var foundId))
+                            {
+                                if (new EditProductWindow(_api, foundId) { Owner = this }.ShowDialog() == true)
+                                    await LoadWorkspaceAsync("Inventory");
+                            }
+                        }
+                        catch (Exception ex) { StatusText.Text = ex.Message; }
+                    };
                     toolbar.Children.Add(movementsButton);
+                    toolbar.Children.Add(scanBox);
+                    toolbar.Children.Add(findBarcode);
+                    if (canManageCatalogue)
+                    {
+                        var importButton = ActionButton("Import CSV");
+                        importButton.Click += async (_, _) =>
+                        {
+                            if (new CsvImportWindow(_api) { Owner = this }.ShowDialog() == true)
+                            {
+                                StatusText.Text = "Import finished. Review the message in the import window if any rows were skipped.";
+                                await LoadWorkspaceAsync("Inventory");
+                            }
+                        };
+                        toolbar.Children.Add(importButton);
+                    }
                 }
                 else if (page == "Users")
                 {
@@ -523,7 +573,14 @@ public partial class MainWindow : Window
                 else if (page == "Stock transfers")
                 {
                     var createTransferButton = new Button { Content = "New transfer request" };
-                    createTransferButton.Click += async (_, _) => await CreateStockTransferFromDesktopAsync();
+                    createTransferButton.Click += async (_, _) =>
+                    {
+                        if (new TransferRequestWindow(_api) { Owner = this }.ShowDialog() == true)
+                        {
+                            StatusText.Text = "Transfer request submitted.";
+                            await LoadWorkspaceAsync("Stock transfers");
+                        }
+                    };
                     toolbar.Children.Add(createTransferButton);
                     var approveButton = new Button { Content = "Approve selected" };
                     approveButton.Click += async (_, _) => await RunSelectedTransferActionAsync(dataGrid, "approve");
@@ -540,8 +597,17 @@ public partial class MainWindow : Window
                 }
                 else if (page == "Stock counts")
                 {
-                    var recordCountButton = new Button { Content = "Record physical counts" };
-                    recordCountButton.Click += async (_, _) => await RecordSelectedStockCountAsync(dataGrid);
+                    var recordCountButton = new Button { Content = "Blind count / review" };
+                    recordCountButton.Click += async (_, _) =>
+                    {
+                        var id = GetSelectedGuid(dataGrid);
+                        if (id is null) { StatusText.Text = "Select a stock count first."; return; }
+                        if (new BlindCountWindow(_api, id.Value) { Owner = this }.ShowDialog() == true)
+                        {
+                            StatusText.Text = "Stock count updated.";
+                            await LoadWorkspaceAsync("Stock counts");
+                        }
+                    };
                     var postCountButton = new Button { Content = "Post selected count" };
                     postCountButton.Click += async (_, _) => await PostSelectedStockCountAsync(dataGrid);
                     toolbar.Children.Add(recordCountButton);
@@ -549,17 +615,26 @@ public partial class MainWindow : Window
                     var startCountButton = new Button { Content = "Start count" };
                     startCountButton.Click += async (_, _) =>
                     {
-                        var warehouseText = Prompt("Start stock count", "Enter warehouse ID (GUID):");
-                        if (!Guid.TryParse(warehouseText, out var warehouseId))
-                        {
-                            StatusText.Text = "Enter a valid warehouse ID.";
-                            return;
-                        }
                         try
                         {
-                            await _api.PostJsonAsync("api/stock-counts", new { warehouseId, notes = "Started from desktop client" });
+                            var warehouses = await _api.GetJsonAsync("api/warehouses");
+                            var dialog = new Window { Title = "Start stock count", Width = 460, Height = 220, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+                            var panel = new StackPanel { Margin = new Thickness(16) };
+                            panel.Children.Add(new TextBlock { Text = "Warehouse", Margin = new Thickness(0, 0, 0, 6) });
+                            var combo = new ComboBox { DisplayMemberPath = "Label" };
+                            foreach (var warehouse in warehouses.EnumerateArray())
+                                combo.Items.Add(new CountWarehouseChoice(warehouse.GetProperty("id").GetString()!, $"{warehouse.GetProperty("code").GetString()} — {warehouse.GetProperty("name").GetString()}"));
+                            if (combo.Items.Count > 0) combo.SelectedIndex = 0;
+                            panel.Children.Add(combo);
+                            var go = new Button { Content = "Start blind count", Margin = new Thickness(0, 12, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+                            go.Click += (_, _) => dialog.DialogResult = true;
+                            panel.Children.Add(go);
+                            dialog.Content = panel;
+                            if (dialog.ShowDialog() != true || combo.SelectedItem is not CountWarehouseChoice selected || !Guid.TryParse(selected.Id, out var warehouseId))
+                                return;
+                            await _api.PostJsonAsync("api/stock-counts", new { warehouseId, notes = "Blind count started from desktop" });
                             await LoadWorkspaceAsync("Stock counts");
-                            StatusText.Text = "Stock count started.";
+                            StatusText.Text = "Blind stock count started. Book quantities stay hidden until review.";
                         }
                         catch (Exception ex) { StatusText.Text = ex.Message; }
                     };
@@ -568,9 +643,17 @@ public partial class MainWindow : Window
                 else if (page == "Returns")
                 {
                     var customerReturnButton = new Button { Content = "New customer return" };
-                    customerReturnButton.Click += async (_, _) => await CreateReturnFromDesktopAsync(customerReturn: true);
+                    customerReturnButton.Click += async (_, _) =>
+                    {
+                        if (new ReturnRequestWindow(_api, customer: true) { Owner = this }.ShowDialog() == true)
+                            await LoadWorkspaceAsync("Returns");
+                    };
                     var supplierReturnButton = new Button { Content = "New supplier return" };
-                    supplierReturnButton.Click += async (_, _) => await CreateReturnFromDesktopAsync(customerReturn: false);
+                    supplierReturnButton.Click += async (_, _) =>
+                    {
+                        if (new ReturnRequestWindow(_api, customer: false) { Owner = this }.ShowDialog() == true)
+                            await LoadWorkspaceAsync("Returns");
+                    };
                     toolbar.Children.Add(customerReturnButton);
                     toolbar.Children.Add(supplierReturnButton);
                 }
@@ -626,6 +709,9 @@ public partial class MainWindow : Window
                         };
                         toolbar.Children.Add(receive);
                     }
+                    var poPdf = ActionButton("PO document");
+                    poPdf.Click += async (_, _) => await DownloadSelectedPdfAsync(dataGrid, "api/purchase-orders/{id}/pdf", "purchase-order.pdf");
+                    toolbar.Children.Add(poPdf);
                 }
                 else if (page == "Suppliers")
                 {
@@ -665,15 +751,30 @@ public partial class MainWindow : Window
                         toolbar.Children.Add(reverse);
                     }
                 }
-                else if (page is "Receipts" or "Audit")
+                else if (page == "Receipts")
                 {
-                    toolbar.Children.Add(new TextBlock
+                    if (_api.IsInRole("Administrator") || _api.IsInRole("Warehouse Manager"))
                     {
-                        Text = page == "Audit" ? "Audit events are read-only." : "Receipts are posted from Purchasing → Receive goods.",
-                        VerticalAlignment = VerticalAlignment.Center,
-                        Margin = new Thickness(0, 8, 0, 0),
-                        Foreground = Brush("#64748B")
-                    });
+                        var reverseReceipt = ActionButton("Reverse selected receipt");
+                        reverseReceipt.Click += async (_, _) =>
+                        {
+                            var id = GetSelectedGuid(dataGrid);
+                            if (id is null) { StatusText.Text = "Select a receipt first."; return; }
+                            var reason = Prompt("Reverse receipt", "Reason for reversing this receipt:");
+                            if (string.IsNullOrWhiteSpace(reason)) return;
+                            try
+                            {
+                                await _api.PostJsonAsync($"api/receipts/{id}/reverse", new { reason });
+                                StatusText.Text = "Receipt reversed.";
+                                await LoadWorkspaceAsync("Receipts");
+                            }
+                            catch (Exception ex) { StatusText.Text = ex.Message; }
+                        };
+                        toolbar.Children.Add(reverseReceipt);
+                    }
+                }
+                else if (page == "Audit")
+                {
                 }
                 else if (!_showShipments)
                 {
@@ -722,6 +823,8 @@ public partial class MainWindow : Window
                 }
                 DockPanel.SetDock(toolbar, Dock.Top);
                 workspace.Children.Add(toolbar);
+                if (page is not ("Customers" or "Sales orders" or "Inventory" or "Purchasing" or "Suppliers"))
+                    ApplyClientFilter(dataGrid);
                 workspace.Children.Add(dataGrid);
                 PageContent.Content = workspace;
             }
@@ -1240,6 +1343,10 @@ public partial class MainWindow : Window
         toolbar.Children.Add(pdf);
         root.Children.Add(toolbar);
         root.Children.Add(await BuildTrendCardAsync(_reportDays, $"Inventory movement · {_reportDays} days", "Daily receipts and issues. Use the exports for a full stock snapshot."));
+        await AddReportSectionAsync(root, "Stock value by warehouse", "api/reports/stock-value");
+        await AddReportSectionAsync(root, $"Dead stock · no movement in {_reportDays} days", $"api/reports/dead-stock?days={_reportDays}");
+        await AddReportSectionAsync(root, "ABC classification", "api/reports/abc");
+        await AddReportSectionAsync(root, "Supplier fill rate", "api/reports/supplier-performance");
         PageContent.Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = root };
         StatusText.Text = $"Reports updated · {_reportDays}-day movement chart.";
     }
@@ -1308,8 +1415,8 @@ public partial class MainWindow : Window
     {
         foreach (var button in new[]
         {
-            DashboardNavButton, ReportsNavButton, CustomersNavButton, SalesOrdersNavButton, SuppliersNavButton,
-            PurchasingNavButton, InventoryNavButton, FulfillmentNavButton, TransfersNavButton, CountsNavButton,
+            DashboardNavButton, AlertsNavButton, ReportsNavButton, CustomersNavButton, SalesOrdersNavButton, SuppliersNavButton,
+            PurchasingNavButton, InventoryNavButton, WarehousesNavButton, FulfillmentNavButton, TransfersNavButton, CountsNavButton,
             ReturnsNavButton, ReceiptsNavButton, MovementsNavButton, AuditNavButton, UsersNavButton
         })
         {
@@ -1357,5 +1464,147 @@ public partial class MainWindow : Window
             chars.Add(name[i]);
         }
         return new string(chars.ToArray()).Replace("Utc", "UTC", StringComparison.Ordinal);
+    }
+
+    private void AddSearch(StackPanel toolbar, string page)
+    {
+        var box = new TextBox { Width = 200, Text = _listSearch, Margin = new Thickness(0, 0, 8, 8), ToolTip = "Search this workspace" };
+        var search = ActionButton("Search");
+        search.Click += async (_, _) =>
+        {
+            _listSearch = box.Text.Trim();
+            await LoadWorkspaceAsync(page);
+        };
+        var clear = ActionButton("Clear");
+        clear.Click += async (_, _) =>
+        {
+            _listSearch = "";
+            await LoadWorkspaceAsync(page);
+        };
+        toolbar.Children.Add(box);
+        toolbar.Children.Add(search);
+        toolbar.Children.Add(clear);
+    }
+
+    private string WithSearch(string page, string endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(_listSearch) || string.IsNullOrEmpty(endpoint))
+            return endpoint;
+        if (page is not ("Customers" or "Sales orders" or "Inventory" or "Purchasing" or "Suppliers"))
+            return endpoint;
+        return endpoint + (endpoint.Contains('?') ? "&" : "?") + "search=" + Uri.EscapeDataString(_listSearch.Trim());
+    }
+
+    private void ApplyClientFilter(DataGrid grid)
+    {
+        if (string.IsNullOrWhiteSpace(_listSearch) || grid.ItemsSource is not DataView view)
+            return;
+        var term = _listSearch.Trim().Replace("'", "''");
+        var columns = view.Table.Columns.Cast<DataColumn>()
+            .Where(column => !column.ColumnName.Equals("id", StringComparison.OrdinalIgnoreCase) &&
+                             !column.ColumnName.Equals("version", StringComparison.OrdinalIgnoreCase))
+            .Select(column => $"Convert([{column.ColumnName}], 'System.String') LIKE '%{term}%'");
+        var filter = string.Join(" OR ", columns);
+        if (!string.IsNullOrEmpty(filter))
+            view.RowFilter = filter;
+    }
+
+    private async Task<UIElement> BuildAlertsPanelAsync()
+    {
+        var panel = new StackPanel();
+        panel.Children.Add(new TextBlock { Text = "Notifications", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brush("#142B45"), Margin = new Thickness(0, 8, 0, 8) });
+        try
+        {
+            var alerts = await _api.GetJsonAsync("api/reports/alerts");
+            if (alerts.ValueKind != JsonValueKind.Array || alerts.GetArrayLength() == 0)
+                panel.Children.Add(new TextBlock { Text = "No low-stock, approval or overdue alerts.", Foreground = Brush("#64748B") });
+            else
+            {
+                foreach (var alert in alerts.EnumerateArray().Take(8))
+                    panel.Children.Add(AlertButton(alert));
+            }
+        }
+        catch (Exception ex)
+        {
+            panel.Children.Add(new TextBlock { Text = "Alerts could not be loaded. " + ex.Message, Foreground = Brush("#B42318"), TextWrapping = TextWrapping.Wrap });
+        }
+        return panel;
+    }
+
+    private Button AlertButton(JsonElement alert)
+    {
+        var workspace = alert.GetProperty("workspace").GetString() ?? "Dashboard";
+        var button = new Button
+        {
+            Content = $"{alert.GetProperty("title").GetString()} — {alert.GetProperty("detail").GetString()}",
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 0, 0, 6),
+            Padding = new Thickness(10, 8, 10, 8)
+        };
+        button.Click += async (_, _) => await OpenPageAsync(workspace);
+        return button;
+    }
+
+    private async Task ShowAlertsAsync()
+    {
+        var root = new StackPanel();
+        try
+        {
+            var alerts = await _api.GetJsonAsync("api/reports/alerts");
+            if (alerts.ValueKind != JsonValueKind.Array || alerts.GetArrayLength() == 0)
+                root.Children.Add(new TextBlock { Text = "Nothing needs attention.", FontSize = 16 });
+            else
+                foreach (var alert in alerts.EnumerateArray())
+                    root.Children.Add(AlertButton(alert));
+            StatusText.Text = "Alerts refreshed.";
+        }
+        catch (Exception ex)
+        {
+            root.Children.Add(new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap });
+        }
+        PageContent.Content = new ScrollViewer { Content = root };
+    }
+
+    private Task ShowWarehousesAsync()
+    {
+        var window = new WarehouseSetupWindow(_api) { Owner = this };
+        window.ShowDialog();
+        PageContent.Content = new TextBlock { Text = "Warehouse changes are saved immediately. Open this page again to add another warehouse or bin.", TextWrapping = TextWrapping.Wrap, FontSize = 15 };
+        StatusText.Text = "Warehouse setup closed.";
+        return Task.CompletedTask;
+    }
+
+    private async Task AddReportSectionAsync(StackPanel root, string title, string path)
+    {
+        root.Children.Add(new TextBlock { Text = title, FontSize = 16, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 8), Foreground = Brush("#142B45") });
+        try
+        {
+            var json = await _api.GetJsonAsync(path);
+            root.Children.Add(CreateDataGrid(json));
+        }
+        catch (Exception ex)
+        {
+            root.Children.Add(new TextBlock { Text = ex.Message, Foreground = Brush("#B42318"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) });
+        }
+    }
+
+    private async Task DownloadSelectedPdfAsync(DataGrid grid, string pathTemplate, string fileName)
+    {
+        var id = GetSelectedGuid(grid);
+        if (id is null) { StatusText.Text = "Select a document first."; return; }
+        try
+        {
+            var bytes = await _api.GetBytesAsync(pathTemplate.Replace("{id}", id.Value.ToString()));
+            var dialog = new Microsoft.Win32.SaveFileDialog { FileName = fileName, Filter = "PDF files (*.pdf)|*.pdf" };
+            if (dialog.ShowDialog(this) == true)
+            {
+                await System.IO.File.WriteAllBytesAsync(dialog.FileName, bytes);
+                StatusText.Text = "PDF saved.";
+            }
+        }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
+    }
+
+    private sealed record CountWarehouseChoice(string Id, string Label);
     }
 }

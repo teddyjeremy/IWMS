@@ -1,10 +1,11 @@
 ﻿
+using IWMS.Application.Audit;
 using IWMS.Application.Common;
+using IWMS.Application.Tracking;
 using IWMS.Domain.Common;
 using IWMS.Domain.Entities;
 using IWMS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
-using IWMS.Application.Audit;
 
 namespace IWMS.Application.Ledger;
 
@@ -12,11 +13,13 @@ public class StockLedgerService
 {
     private readonly IAppDbContext _db;
     private readonly AuditLogger _audit;
+    private readonly LotTrackingService _lots;
 
-    public StockLedgerService(IAppDbContext db, AuditLogger audit)
+    public StockLedgerService(IAppDbContext db, AuditLogger audit, LotTrackingService lots)
     {
         _db = db;
         _audit = audit;
+        _lots = lots;
     }
 
     public async Task<StockPostingResult> IssueAsync(
@@ -63,6 +66,8 @@ public class StockLedgerService
             $"(product {request.ProductId}, location {request.StorageLocationId})");
 
         _db.InventoryMovements.Add(movement);
+        await _lots.ApplyDecreaseAsync(
+            request.ProductId, request.StorageLocationId, request.Quantity, request.LotNumber, request.Serials, ct);
 
         await _db.SaveChangesAsync(ct);
 
@@ -126,6 +131,10 @@ public class StockLedgerService
             $"(product {request.ProductId}, location {request.StorageLocationId})");
 
         _db.InventoryMovements.Add(movement);
+        if (request.IsIncrease)
+            await _lots.ApplyIncreaseAsync(request.ProductId, request.StorageLocationId, request.Quantity, request.LotNumber, null, request.Serials, ct);
+        else
+            await _lots.ApplyDecreaseAsync(request.ProductId, request.StorageLocationId, request.Quantity, request.LotNumber, request.Serials, ct);
 
         await _db.SaveChangesAsync(ct);
 
@@ -187,9 +196,10 @@ public class StockLedgerService
             reference,
             request.IdempotencyKey);
 
-        _db.InventoryMovements.AddRange(
-            outMovement,
-            inMovement);
+        _db.InventoryMovements.AddRange(outMovement, inMovement);
+        var takes = await _lots.ApplyDecreaseAsync(request.ProductId, request.FromStorageLocationId, request.Quantity, null, null, ct);
+        foreach (var take in takes)
+            await _lots.ApplyIncreaseAsync(request.ProductId, request.ToStorageLocationId, take.Quantity, take.Source.LotNumber, take.Source.ExpiryUtc, null, ct);
 
         await _db.SaveChangesAsync(ct);
 

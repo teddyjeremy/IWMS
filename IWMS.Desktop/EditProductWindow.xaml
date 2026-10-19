@@ -24,7 +24,9 @@
                 <TextBlock Text="Base unit *" Foreground="{StaticResource Ink}"/><ComboBox x:Name="BaseUnitBox" Padding="10" Margin="0,5,0,14"/>
                 <TextBlock Text="Cost price" Foreground="{StaticResource Ink}"/><TextBox x:Name="CostPriceBox"/>
                 <TextBlock Text="Reorder level" Foreground="{StaticResource Ink}"/><TextBox x:Name="ReorderLevelBox"/>
-                <CheckBox x:Name="ActiveBox" Content="Product is active" Margin="0,0,0,14"/>
+                <CheckBox x:Name="ActiveBox" Content="Product is active" Margin="0,0,0,8"/>
+                <CheckBox x:Name="TrackLotsBox" Content="Track lots, batches and expiry (picked FEFO)" Margin="0,0,0,8"/>
+                <CheckBox x:Name="TrackSerialsBox" Content="Track serial numbers, one per unit" Margin="0,0,0,14"/>
                 <TextBlock x:Name="ErrorText" Foreground="#B42318" TextWrapping="Wrap" Margin="0,0,0,10"/>
             </StackPanel>
         </ScrollViewer>

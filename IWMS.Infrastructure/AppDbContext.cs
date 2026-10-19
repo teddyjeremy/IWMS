@@ -37,6 +37,9 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<ReturnRecord> ReturnRecords => Set<ReturnRecord>();
     public DbSet<ReturnRecordLine> ReturnRecordLines => Set<ReturnRecordLine>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+    public DbSet<InventoryLot> InventoryLots => Set<InventoryLot>();
+    public DbSet<TrackedSerial> TrackedSerials => Set<TrackedSerial>();
+    public DbSet<TransferLotLine> TransferLotLines => Set<TransferLotLine>();
 
     public void SetOriginalVersion<TEntity>(TEntity entity, uint version) where TEntity : BaseEntity
     {
@@ -88,6 +91,8 @@ public class AppDbContext : DbContext, IAppDbContext
         {
             e.Property(p => p.Sku).HasMaxLength(50);
             e.HasIndex(p => p.Sku).IsUnique();
+            e.Property(p => p.Barcode).HasMaxLength(80);
+            e.HasIndex(p => p.Barcode).IsUnique().HasFilter("\"Barcode\" IS NOT NULL AND \"Barcode\" <> ''");
         });
 
         modelBuilder.Entity<Warehouse>().HasIndex(w => w.Code).IsUnique();
@@ -107,5 +112,23 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<InventoryMovement>().HasIndex(m => m.ReversesMovementId).IsUnique();
 
         modelBuilder.Entity<Supplier>().HasIndex(s => s.Name).IsUnique();
+
+        modelBuilder.Entity<InventoryLot>(e =>
+        {
+            e.Property(l => l.LotNumber).HasMaxLength(80);
+            e.HasIndex(l => new { l.ProductId, l.StorageLocationId, l.LotNumber }).IsUnique();
+        });
+
+        modelBuilder.Entity<TrackedSerial>(e =>
+        {
+            e.Property(s => s.Serial).HasMaxLength(80);
+            e.HasIndex(s => new { s.ProductId, s.Serial }).IsUnique();
+        });
+
+        modelBuilder.Entity<TransferLotLine>(e =>
+        {
+            e.Property(l => l.LotNumber).HasMaxLength(80);
+            e.HasIndex(l => l.StockTransferLineId);
+        });
     }
 }

@@ -22,6 +22,10 @@ public class Product : BaseEntity
 
     public bool IsActive { get; set; } = true;
 
+    public bool TrackLots { get; set; }
+
+    public bool TrackSerials { get; set; }
+
     public Guid CategoryId { get; set; }
 
     public Category Category { get; set; } = null!;

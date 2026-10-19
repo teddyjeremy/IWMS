@@ -3,6 +3,7 @@ using IWMS.Application.Audit;
 using IWMS.Domain.Common;
 using IWMS.Domain.Entities;
 using IWMS.Domain.Enums;
+using IWMS.Application.Tracking;
 using IWMS.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,11 +18,13 @@ public sealed class ReturnsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly AuditLogger _audit;
+    private readonly LotTrackingService _lots;
 
-    public ReturnsController(AppDbContext db, AuditLogger audit)
+    public ReturnsController(AppDbContext db, AuditLogger audit, LotTrackingService lots)
     {
         _db = db;
         _audit = audit;
+        _lots = lots;
     }
 
     [HttpGet]
@@ -124,8 +127,10 @@ public sealed class ReturnsController : ControllerBase
             }).ToList()
         };
 
-        foreach (var line in record.Lines)
+        for (var index = 0; index < record.Lines.Count; index++)
         {
+            var line = record.Lines[index];
+            var input = request.Lines[index];
             if (!await _db.Products.AnyAsync(p => p.Id == line.ProductId && p.IsActive, ct))
                 throw new DomainException($"Product {line.ProductId} was not found or is inactive.");
 
@@ -169,6 +174,7 @@ public sealed class ReturnsController : ControllerBase
                     var movement = balance.Post(MovementType.ReturnRestock, line.Quantity, userId,
                         line.Reason, record.ReturnNumber, sourceLineId: line.Id);
                     _db.InventoryMovements.Add(movement);
+                    await _lots.ApplyIncreaseAsync(line.ProductId, location.Id, line.Quantity, input.LotNumber, input.ExpiryUtc, input.Serials, ct);
                 }
                 else if (line.Disposition is not (ReturnDisposition.Quarantine or ReturnDisposition.Scrap))
                 {
@@ -201,6 +207,7 @@ public sealed class ReturnsController : ControllerBase
                 var movement = balance.Post(MovementType.Dispatch, line.Quantity, userId,
                     line.Reason, record.ReturnNumber, sourceLineId: line.Id);
                 _db.InventoryMovements.Add(movement);
+                await _lots.ApplyDecreaseAsync(line.ProductId, line.StorageLocationId.Value, line.Quantity, input.LotNumber, input.Serials, ct);
             }
         }
 
@@ -225,4 +232,4 @@ public sealed record CreateReturnRequest(
     List<CreateReturnLineRequest> Lines);
 public sealed record CreateReturnLineRequest(
     Guid ProductId, decimal Quantity, string? Reason, string? Condition,
-    ReturnDisposition Disposition, Guid? StorageLocationId);
+    ReturnDisposition Disposition, Guid? StorageLocationId, string? LotNumber = null, DateTime? ExpiryUtc = null, string? Serials = null);

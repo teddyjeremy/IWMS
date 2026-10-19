@@ -1,4 +1,5 @@
 ﻿using IWMS.Api.Dtos;
+using IWMS.Api.Reports;
 using IWMS.Api.Security;
 using IWMS.Application;
 using IWMS.Application.Purchasing;
@@ -110,6 +111,50 @@ public class PurchaseOrdersController : ControllerBase
             .ToListAsync(ct);
 
         return Ok(order with { History = history });
+    }
+
+    [HttpGet("{id:guid}/pdf")]
+    public async Task<IActionResult> Pdf(Guid id, CancellationToken ct)
+    {
+        var order = await _db.PurchaseOrders.AsNoTracking()
+            .Where(o => o.Id == id)
+            .Select(o => new
+            {
+                o.OrderNumber,
+                Supplier = o.Supplier.Name,
+                o.Status,
+                o.ExpectedDeliveryUtc,
+                o.Notes,
+                Lines = o.Lines.OrderBy(l => l.Product.Sku).Select(l => new
+                {
+                    l.Product.Sku,
+                    l.Product.Name,
+                    l.QuantityOrdered,
+                    l.QuantityReceived,
+                    l.ExpectedUnitPrice
+                }).ToList()
+            })
+            .SingleOrDefaultAsync(ct);
+        if (order is null)
+            return NotFound();
+
+        var lines = new List<string>
+        {
+            "IWMS Purchase Order",
+            order.OrderNumber,
+            $"Supplier: {order.Supplier}",
+            $"Status: {order.Status}",
+            $"Expected delivery UTC: {order.ExpectedDeliveryUtc:yyyy-MM-dd}",
+            string.IsNullOrWhiteSpace(order.Notes) ? "" : $"Notes: {order.Notes}",
+            "",
+            "SKU | Product | Ordered | Received | Unit price | Line total",
+            new string('-', 90)
+        };
+        foreach (var line in order.Lines)
+            lines.Add($"{line.Sku} | {line.Name} | {line.QuantityOrdered} | {line.QuantityReceived} | {line.ExpectedUnitPrice} | {line.QuantityOrdered * line.ExpectedUnitPrice}");
+        lines.Add("");
+        lines.Add($"Order value: {order.Lines.Sum(l => l.QuantityOrdered * l.ExpectedUnitPrice)}");
+        return File(SimplePdfWriter.Create(lines), "application/pdf", $"{order.OrderNumber}.pdf");
     }
 
     [Authorize(Policy = Policies.ManagePurchaseOrders)]

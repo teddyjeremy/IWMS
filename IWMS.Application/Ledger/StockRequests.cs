@@ -7,7 +7,9 @@ public record IssueStockRequest(
     Guid PerformedByUserId,
     Guid IdempotencyKey,
     string ReferenceNumber,
-    string Reason);
+    string Reason,
+    string? LotNumber = null,
+    string? Serials = null);
 
 public record AdjustStockRequest(
     Guid ProductId,
@@ -16,7 +18,9 @@ public record AdjustStockRequest(
     bool IsIncrease,
     string Reason,
     Guid PerformedByUserId,
-    Guid IdempotencyKey);
+    Guid IdempotencyKey,
+    string? LotNumber = null,
+    string? Serials = null);
 
 public record TransferStockRequest(
     Guid ProductId,

@@ -3,6 +3,7 @@ using IWMS.Application.Audit;
 using IWMS.Domain.Common;
 using IWMS.Domain.Entities;
 using IWMS.Domain.Enums;
+using IWMS.Application.Tracking;
 using IWMS.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,11 +18,13 @@ public sealed class StockTransfersController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly AuditLogger _audit;
+    private readonly LotTrackingService _lots;
 
-    public StockTransfersController(AppDbContext db, AuditLogger audit)
+    public StockTransfersController(AppDbContext db, AuditLogger audit, LotTrackingService lots)
     {
         _db = db;
         _audit = audit;
+        _lots = lots;
     }
 
     [HttpGet]
@@ -191,6 +194,17 @@ public sealed class StockTransfersController : ControllerBase
             var movement = balance.Post(MovementType.TransferOut, line.QuantityRequested, userId,
                 transfer.Reason, transfer.TransferNumber, sourceLineId: line.Id);
             _db.InventoryMovements.Add(movement);
+            var takes = await _lots.ApplyDecreaseAsync(line.ProductId, line.FromStorageLocationId, line.QuantityRequested, null, null, ct);
+            foreach (var take in takes)
+            {
+                _db.TransferLotLines.Add(new TransferLotLine
+                {
+                    StockTransferLineId = line.Id,
+                    LotNumber = take.Source.LotNumber,
+                    ExpiryUtc = take.Source.ExpiryUtc,
+                    Quantity = take.Quantity
+                });
+            }
             line.QuantityDispatched = line.QuantityRequested;
             line.UpdatedAtUtc = DateTime.UtcNow;
         }
@@ -253,6 +267,15 @@ public sealed class StockTransfersController : ControllerBase
                 var movement = balance.Post(MovementType.TransferIn, input.QuantityReceived, userId,
                     transfer.Reason, transfer.TransferNumber, sourceLineId: line.Id);
                 _db.InventoryMovements.Add(movement);
+                var allocations = await _db.TransferLotLines.Where(l => l.StockTransferLineId == line.Id).ToListAsync(ct);
+                var remaining = input.QuantityReceived;
+                foreach (var allocation in allocations)
+                {
+                    if (remaining <= 0) break;
+                    var take = Math.Min(remaining, allocation.Quantity);
+                    await _lots.ApplyIncreaseAsync(line.ProductId, line.ToStorageLocationId, take, allocation.LotNumber, allocation.ExpiryUtc, null, ct);
+                    remaining -= take;
+                }
             }
             line.QuantityReceived = input.QuantityReceived;
             line.DiscrepancyNote = input.DiscrepancyNote?.Trim() ?? string.Empty;
