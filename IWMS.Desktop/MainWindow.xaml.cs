@@ -166,6 +166,15 @@ public partial class MainWindow : Window
                         if (created == true) await LoadWorkspaceAsync(page);
                     };
                     toolbar.Children.Add(addButton);
+                    if (page == "Sales orders")
+                    {
+                        var confirmButton = new Button { Content = "Confirm selected" };
+                        confirmButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "confirm-order");
+                        var cancelOrderButton = new Button { Content = "Cancel selected" };
+                        cancelOrderButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "cancel-order");
+                        toolbar.Children.Add(confirmButton);
+                        toolbar.Children.Add(cancelOrderButton);
+                    }
                 }
                 else if (!_showShipments)
                 {
@@ -290,6 +299,10 @@ public partial class MainWindow : Window
                 await _api.PostJsonAsync($"api/fulfillment/sales-orders/{id}/reserve", new { });
             else if (action == "pick-list")
                 await _api.PostJsonAsync($"api/fulfillment/sales-orders/{id}/pick-list", new { });
+            else if (action == "confirm-order")
+                await _api.PostJsonAsync($"api/sales-orders/{id}/confirm", new { });
+            else if (action == "cancel-order")
+                await _api.PostJsonAsync($"api/fulfillment/sales-orders/{id}/cancel", new { });
             else if (action == "dispatch")
                 await _api.PostJsonAsync($"api/fulfillment/shipments/{id}/dispatch", new { });
             else if (action == "cancel-shipment")
