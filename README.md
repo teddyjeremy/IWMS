@@ -67,6 +67,26 @@ Work in small, reviewable sections. Keep each commit focused, run the build and 
 
 The Windows desktop application is a separate deliverable from the API publish. Choose and add a desktop framework (for example, WPF) as a dedicated project before claiming the desktop UI is packaged.
 
+## Fulfillment and reporting endpoints
+
+All endpoints below require a valid bearer token unless the authentication endpoint explicitly allows anonymous access.
+
+- `POST /api/auth/login` — obtain a bearer token.
+- `GET /api/customers` and `GET /api/customers/{id}` — list/search and inspect customers.
+- `POST /api/customers`, `PUT /api/customers/{id}`, `POST /api/customers/{id}/deactivate` — maintain customer records.
+- `GET /api/sales-orders` and `GET /api/sales-orders/{id}` — inspect orders.
+- `POST /api/sales-orders`, `POST /api/sales-orders/{id}/confirm`, `POST /api/sales-orders/{id}/cancel` — create and manage eligible orders.
+- `POST /api/fulfillment/sales-orders/{id}/reserve` — reserve available stock and report shortages.
+- `POST /api/fulfillment/sales-orders/{id}/pick-list` — create pick lists from active reservations.
+- `POST /api/fulfillment/shipments/{id}/pick` — record picked quantities.
+- `POST /api/fulfillment/shipments/{id}/dispatch` — post dispatch movements and update order fulfillment.
+- `POST /api/fulfillment/sales-orders/{id}/cancel` and `POST /api/fulfillment/shipments/{id}/cancel` — cancel eligible orders/shipments and release order reservations.
+- `GET /api/reports/dashboard` — stock value, low-stock products, open purchase orders, pending approvals and order totals.
+- `GET /api/reports/inventory-trend?days=30` — daily movement totals for the requested period.
+- `GET /api/reports/inventory.csv` — download an inventory CSV.
+
+Fulfillment operations that modify stock use a database transaction. Test these workflows against a non-production database before operational use. PDF reporting and the Windows desktop UI are still under development; the current CI publish artifact is the API, not a desktop installer.
+
 ## Security
 
 Never commit database passwords, JWT signing keys, production credentials or real customer data.
