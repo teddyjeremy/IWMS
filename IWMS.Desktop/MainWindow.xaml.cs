@@ -1,4 +1,6 @@
+using System.Data;
 using System.Globalization;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -20,7 +22,6 @@ public partial class MainWindow : Window
     {
         var dialog = new SignInWindow(_api) { Owner = this };
         if (dialog.ShowDialog() != true) return;
-
         ConnectionLabel.Text = $"Connected as {_api.CurrentUserName}";
         StatusText.Text = "Connected to the IWMS API.";
         await LoadDashboardAsync();
@@ -47,7 +48,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        PageContent.Content = BuildSectionPage(page);
+        await LoadWorkspaceAsync(page);
     }
 
     private void ShowDashboard()
@@ -83,10 +84,144 @@ public partial class MainWindow : Window
             PageContent.Content = panel;
             StatusText.Text = $"Last refreshed {DateTime.Now:T}.";
         }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
+    }
+
+    private async Task LoadWorkspaceAsync(string page)
+    {
+        if (!_api.IsSignedIn)
+        {
+            PageContent.Content = new TextBlock
+            {
+                Text = "Sign in to the IWMS API to access this workspace.",
+                FontSize = 16,
+                TextWrapping = TextWrapping.Wrap
+            };
+            return;
+        }
+
+        if (page == "Reports")
+        {
+            var reportPanel = new StackPanel();
+            reportPanel.Children.Add(new TextBlock
+            {
+                Text = "Download a live inventory snapshot for analysis or record keeping.",
+                FontSize = 15,
+                Margin = new Thickness(0, 0, 0, 14)
+            });
+            var csvButton = new Button
+            {
+                Content = "Download inventory CSV",
+                Width = 220,
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+            csvButton.Click += async (_, _) => await DownloadInventoryCsvAsync();
+            reportPanel.Children.Add(csvButton);
+            PageContent.Content = reportPanel;
+            return;
+        }
+
+        var endpoint = page switch
+        {
+            "Customers" => "api/customers",
+            "Sales orders" => "api/sales-orders",
+            "Inventory" => "api/products",
+            "Purchasing" => "api/purchase-orders",
+            "Fulfillment" => "api/sales-orders",
+            _ => string.Empty
+        };
+
+        if (string.IsNullOrEmpty(endpoint))
+        {
+            PageContent.Content = new TextBlock { Text = "This workspace is not configured yet." };
+            return;
+        }
+
+        try
+        {
+            StatusText.Text = $"Loading {page.ToLowerInvariant()}...";
+            var json = await _api.GetJsonAsync(endpoint);
+            PageContent.Content = CreateDataGrid(json);
+            StatusText.Text = $"Loaded {page.ToLowerInvariant()} from the IWMS API.";
+        }
         catch (Exception ex)
         {
-            StatusText.Text = ex.Message;
+            PageContent.Content = new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap };
+            StatusText.Text = "Could not load data.";
         }
+    }
+
+    private static DataGrid CreateDataGrid(JsonElement json)
+    {
+        if (json.ValueKind == JsonValueKind.Object && json.TryGetProperty("items", out var items))
+            json = items;
+
+        var table = new DataTable();
+        if (json.ValueKind != JsonValueKind.Array || json.GetArrayLength() == 0)
+        {
+            table.Columns.Add("Result");
+            table.Rows.Add(json.ValueKind == JsonValueKind.Array ? "No records found." : json.ToString());
+        }
+        else
+        {
+            var records = json.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Object).ToList();
+            if (records.Count == 0)
+            {
+                table.Columns.Add("Result");
+                table.Rows.Add("No records found.");
+            }
+            else
+            {
+                var keys = records[0].EnumerateObject().Select(p => p.Name).ToList();
+                foreach (var key in keys) table.Columns.Add(key);
+                foreach (var record in records)
+                {
+                    var row = table.NewRow();
+                    foreach (var key in keys)
+                        if (record.TryGetProperty(key, out var value))
+                            row[key] = FormatJsonValue(value);
+                    table.Rows.Add(row);
+                }
+            }
+        }
+
+        return new DataGrid
+        {
+            ItemsSource = table.DefaultView,
+            AutoGenerateColumns = true,
+            IsReadOnly = true,
+            CanUserAddRows = false,
+            CanUserDeleteRows = false,
+            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            AlternatingRowBackground = System.Windows.Media.Brushes.WhiteSmoke
+        };
+    }
+
+    private static string FormatJsonValue(JsonElement value) => value.ValueKind switch
+    {
+        JsonValueKind.Null => string.Empty,
+        JsonValueKind.Object or JsonValueKind.Array => value.ToString(),
+        _ => value.ToString()
+    };
+
+    private async Task DownloadInventoryCsvAsync()
+    {
+        try
+        {
+            var bytes = await _api.GetBytesAsync("api/reports/inventory.csv");
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                FileName = "iwms-inventory.csv",
+                Filter = "CSV files (*.csv)|*.csv"
+            };
+            if (dialog.ShowDialog(this) == true)
+            {
+                await System.IO.File.WriteAllBytesAsync(dialog.FileName, bytes);
+                StatusText.Text = "Inventory CSV saved.";
+            }
+        }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
     }
 
     private static void AddMetric(Panel panel, string label, string value)
@@ -103,47 +238,15 @@ public partial class MainWindow : Window
         };
         var stack = new StackPanel();
         stack.Children.Add(new TextBlock { Text = label, Foreground = System.Windows.Media.Brushes.Gray, FontSize = 13 });
-        stack.Children.Add(new TextBlock { Text = value, Foreground = new System.Windows.Media.SolidColorBrush(
-            System.Windows.Media.Color.FromRgb(23, 33, 43)), FontSize = 25, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0) });
+        stack.Children.Add(new TextBlock
+        {
+            Text = value,
+            Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(23, 33, 43)),
+            FontSize = 25,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 12, 0, 0)
+        });
         card.Child = stack;
         panel.Children.Add(card);
-    }
-
-    private UIElement BuildSectionPage(string page)
-    {
-        var stack = new StackPanel();
-        stack.Children.Add(new TextBlock
-        {
-            Text = $"{page} workspace",
-            FontSize = 22,
-            FontWeight = FontWeights.SemiBold,
-            Margin = new Thickness(0, 0, 0, 10)
-        });
-        stack.Children.Add(new TextBlock
-        {
-            Text = _api.IsSignedIn
-                ? "This workspace is being connected to the existing IWMS API. Use the API endpoints documented in the repository README while this screen is completed."
-                : "Sign in to the IWMS API to access operational data.",
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = System.Windows.Media.Brushes.Gray,
-            FontSize = 14
-        });
-        if (page == "Reports")
-        {
-            var button = new Button { Content = "Download inventory CSV", Width = 210, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 18, 0, 0) };
-            button.Click += async (_, _) =>
-            {
-                try
-                {
-                    var bytes = await _api.GetBytesAsync("api/reports/inventory.csv");
-                    var dialog = new Microsoft.Win32.SaveFileDialog { FileName = "iwms-inventory.csv", Filter = "CSV files (*.csv)|*.csv" };
-                    if (dialog.ShowDialog(this) == true)
-                        await System.IO.File.WriteAllBytesAsync(dialog.FileName, bytes);
-                }
-                catch (Exception ex) { StatusText.Text = ex.Message; }
-            };
-            stack.Children.Add(button);
-        }
-        return stack;
     }
 }
