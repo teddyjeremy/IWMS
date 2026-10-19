@@ -159,7 +159,7 @@ public partial class MainWindow : Window
             StatusText.Text = $"Loading {page.ToLowerInvariant()}...";
             var json = await _api.GetJsonAsync(endpoint);
             var dataGrid = CreateDataGrid(json);
-            if (page is "Customers" or "Sales orders" or "Fulfillment" or "Stock transfers" or "Stock counts")
+            if (page is "Customers" or "Sales orders" or "Fulfillment" or "Stock transfers" or "Stock counts" or "Returns")
             {
                 var workspace = new DockPanel();
                 var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
@@ -193,6 +193,9 @@ public partial class MainWindow : Window
                 }
                 else if (page == "Stock transfers")
                 {
+                    var createTransferButton = new Button { Content = "New transfer request" };
+                    createTransferButton.Click += async (_, _) => await CreateStockTransferFromDesktopAsync();
+                    toolbar.Children.Add(createTransferButton);
                     var approveButton = new Button { Content = "Approve selected" };
                     approveButton.Click += async (_, _) => await RunSelectedTransferActionAsync(dataGrid, "approve");
                     var rejectButton = new Button { Content = "Reject selected" };
@@ -208,6 +211,12 @@ public partial class MainWindow : Window
                 }
                 else if (page == "Stock counts")
                 {
+                    var recordCountButton = new Button { Content = "Record physical counts" };
+                    recordCountButton.Click += async (_, _) => await RecordSelectedStockCountAsync(dataGrid);
+                    var postCountButton = new Button { Content = "Post selected count" };
+                    postCountButton.Click += async (_, _) => await PostSelectedStockCountAsync(dataGrid);
+                    toolbar.Children.Add(recordCountButton);
+                    toolbar.Children.Add(postCountButton);
                     var startCountButton = new Button { Content = "Start count" };
                     startCountButton.Click += async (_, _) =>
                     {
@@ -226,6 +235,15 @@ public partial class MainWindow : Window
                         catch (Exception ex) { StatusText.Text = ex.Message; }
                     };
                     toolbar.Children.Add(startCountButton);
+                }
+                else if (page == "Returns")
+                {
+                    var customerReturnButton = new Button { Content = "New customer return" };
+                    customerReturnButton.Click += async (_, _) => await CreateReturnFromDesktopAsync(customerReturn: true);
+                    var supplierReturnButton = new Button { Content = "New supplier return" };
+                    supplierReturnButton.Click += async (_, _) => await CreateReturnFromDesktopAsync(customerReturn: false);
+                    toolbar.Children.Add(customerReturnButton);
+                    toolbar.Children.Add(supplierReturnButton);
                 }
                 else if (!_showShipments)
                 {
@@ -398,6 +416,111 @@ public partial class MainWindow : Window
         catch (Exception ex) { StatusText.Text = ex.Message; }
     }
 
+    private async Task CreateStockTransferFromDesktopAsync()
+    {
+        try
+        {
+            if (!Guid.TryParse(Prompt("New transfer", "Source warehouse ID (GUID):"), out var sourceWarehouseId) ||
+                !Guid.TryParse(Prompt("New transfer", "Destination warehouse ID (GUID):"), out var destinationWarehouseId) ||
+                !Guid.TryParse(Prompt("New transfer", "Product ID (GUID):"), out var productId) ||
+                !Guid.TryParse(Prompt("New transfer", "Source storage location ID (GUID):"), out var fromLocationId) ||
+                !Guid.TryParse(Prompt("New transfer", "Destination storage location ID (GUID):"), out var toLocationId))
+            { StatusText.Text = "Transfer creation cancelled or an ID was invalid."; return; }
+            if (!decimal.TryParse(Prompt("New transfer", "Quantity to transfer:"), NumberStyles.Number, CultureInfo.InvariantCulture, out var quantity) || quantity <= 0)
+            { StatusText.Text = "Enter a positive quantity using invariant decimal format."; return; }
+            var reason = Prompt("New transfer", "Reason for transfer:");
+            await _api.PostJsonAsync("api/stock-transfers", new
+            {
+                sourceWarehouseId, destinationWarehouseId, reason,
+                lines = new[] { new { productId, fromStorageLocationId = fromLocationId, toStorageLocationId = toLocationId, quantity } }
+            });
+            await LoadWorkspaceAsync("Stock transfers");
+            StatusText.Text = "Transfer request submitted for approval.";
+        }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
+    }
+
+    private async Task RecordSelectedStockCountAsync(DataGrid grid)
+    {
+        var id = GetSelectedGuid(grid);
+        if (id is null) { StatusText.Text = "Select a stock count first."; return; }
+        try
+        {
+            var detail = await _api.GetJsonAsync($"api/stock-counts/{id}");
+            if (!detail.TryGetProperty("lines", out var lines) || lines.ValueKind != JsonValueKind.Array)
+                throw new InvalidOperationException("The stock count response did not contain lines.");
+            var payload = new List<object>();
+            foreach (var line in lines.EnumerateArray())
+            {
+                var lineId = line.GetProperty("id").GetGuid();
+                var systemQuantity = line.GetProperty("systemQuantity").GetDecimal();
+                var countedText = Prompt("Physical stock count", $"{line.GetProperty("sku").GetString()} at {line.GetProperty("location").GetString()}. System quantity: {systemQuantity}. Enter counted quantity:");
+                if (!decimal.TryParse(countedText, NumberStyles.Number, CultureInfo.InvariantCulture, out var counted) || counted < 0)
+                    throw new InvalidOperationException("Count cancelled or invalid. Enter non-negative quantities using invariant decimal format.");
+                var varianceReason = string.Empty;
+                if (counted != systemQuantity)
+                    varianceReason = Prompt("Count variance", "Explain the difference:") ?? string.Empty;
+                payload.Add(new { lineId, countedQuantity = counted, varianceReason });
+            }
+            await _api.PutJsonAsync($"api/stock-counts/{id}/lines", new { lines = payload });
+            await LoadWorkspaceAsync("Stock counts");
+            StatusText.Text = "Physical counts recorded.";
+        }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
+    }
+
+    private async Task PostSelectedStockCountAsync(DataGrid grid)
+    {
+        var id = GetSelectedGuid(grid);
+        if (id is null) { StatusText.Text = "Select a stock count first."; return; }
+        var confirm = MessageBox.Show("Post this completed count and apply its inventory variances?", "Post stock count", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes) return;
+        try
+        {
+            await _api.PostJsonAsync($"api/stock-counts/{id}/post", new { });
+            await LoadWorkspaceAsync("Stock counts");
+            StatusText.Text = "Stock count adjustments posted.";
+        }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
+    }
+
+    private async Task CreateReturnFromDesktopAsync(bool customerReturn)
+    {
+        try
+        {
+            if (!Guid.TryParse(Prompt(customerReturn ? "Customer return" : "Supplier return", customerReturn ? "Sales order ID (GUID):" : "Goods receipt ID (GUID):"), out var sourceId) ||
+                !Guid.TryParse(Prompt("Return", "Product ID (GUID):"), out var productId))
+            { StatusText.Text = "Return creation cancelled or an ID was invalid."; return; }
+            if (!decimal.TryParse(Prompt("Return", "Quantity:"), NumberStyles.Number, CultureInfo.InvariantCulture, out var quantity) || quantity <= 0)
+            { StatusText.Text = "Enter a positive quantity using invariant decimal format."; return; }
+            var reason = Prompt("Return", "Reason for return:") ?? string.Empty;
+            var condition = Prompt("Return", "Product condition:") ?? string.Empty;
+            var disposition = customerReturn ? 1 : 4;
+            if (customerReturn)
+            {
+                var choice = Prompt("Customer return disposition", "1 = Restock, 2 = Quarantine, 3 = Scrap:");
+                if (!int.TryParse(choice, out disposition) || disposition is < 1 or > 3)
+                { StatusText.Text = "Choose disposition 1, 2 or 3."; return; }
+            }
+            Guid? storageLocationId = null;
+            if (!customerReturn || disposition == 1)
+            {
+                if (!Guid.TryParse(Prompt("Return", "Storage location ID (GUID):"), out var locationId))
+                { StatusText.Text = "A valid storage location ID is required for this disposition."; return; }
+                storageLocationId = locationId;
+            }
+            Guid? salesOrderId = customerReturn ? sourceId : null;
+            Guid? goodsReceiptId = customerReturn ? null : sourceId;
+            await _api.PostJsonAsync("api/returns", new
+            {
+                type = customerReturn ? 1 : 2, salesOrderId, goodsReceiptId, notes = string.Empty,
+                lines = new[] { new { productId, quantity, reason, condition, disposition, storageLocationId } }
+            });
+            await LoadWorkspaceAsync("Returns");
+            StatusText.Text = "Return recorded.";
+        }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
+    }
     private async Task RunSelectedTransferActionAsync(DataGrid grid, string action)
     {
         var id = GetSelectedGuid(grid);
