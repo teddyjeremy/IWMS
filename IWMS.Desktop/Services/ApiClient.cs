@@ -55,6 +55,16 @@ public sealed class ApiClient
             ?? throw new InvalidOperationException("The API returned an empty response.");
     }
 
+    public async Task PostJsonAsync(string path, object payload, CancellationToken ct = default)
+    {
+        using var response = await _http.PostAsJsonAsync(path, payload, JsonOptions, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var detail = await response.Content.ReadAsStringAsync(ct);
+            throw new InvalidOperationException($"Request failed ({(int)response.StatusCode}): {detail}");
+        }
+    }
+
     public async Task<JsonElement> GetJsonAsync(string path, CancellationToken ct = default)
     {
         using var response = await _http.GetAsync(path, ct);
