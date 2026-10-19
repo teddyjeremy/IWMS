@@ -86,7 +86,7 @@ public sealed class FulfillmentController : ControllerBase
             .SingleOrDefaultAsync(o => o.Id == orderId, ct);
         if (order is null) return NotFound();
         if (order.Status is not (SalesOrderStatus.Confirmed or SalesOrderStatus.Backordered or SalesOrderStatus.Reserved or SalesOrderStatus.PartiallyDispatched))
-            throw new DomainException("Only confirmed or backordered orders can be reserved.");
+            throw new DomainException("Only confirmed, backordered, reserved or partially dispatched orders can be reserved.");
 
         var shortages = new List<object>();
         foreach (var line in order.Lines)
@@ -156,7 +156,7 @@ public sealed class FulfillmentController : ControllerBase
         var shipment = new Shipment
         {
             SalesOrderId = order.Id,
-            ShipmentNumber = $"SH-{Guid.NewGuid():N},
+            ShipmentNumber = $"SH-{Guid.NewGuid():N}",
             Status = ShipmentStatus.PickListCreated,
             Notes = request.Notes?.Trim() ?? string.Empty
         };
