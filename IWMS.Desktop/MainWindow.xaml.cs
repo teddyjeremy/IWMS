@@ -16,7 +16,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        LoginApiUrlBox.Text = _api.BaseUrl;
+        LoginApiUrlBox.Text = Environment.GetEnvironmentVariable("IWMS_API_BASE_URL") ?? _api.BaseUrl;
         ShellRoot.Visibility = Visibility.Collapsed;
         LoginRoot.Visibility = Visibility.Visible;
         ShowDashboard();
