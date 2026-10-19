@@ -34,6 +34,7 @@ public partial class MainWindow : Window
             await _api.SignInAsync(LoginEmailBox.Text.Trim(), LoginPasswordBox.Password);
             LoginPasswordBox.Clear();
             ConnectionLabel.Text = $"Signed in as {_api.CurrentUserName}";
+            UsersNavButton.Visibility = _api.IsInRole("Administrator") ? Visibility.Visible : Visibility.Collapsed;
             LoginRoot.Visibility = Visibility.Collapsed;
             ShellRoot.Visibility = Visibility.Visible;
             StatusText.Text = "Securely connected to the IWMS API.";
@@ -54,6 +55,7 @@ public partial class MainWindow : Window
     private void SignOut_Click(object sender, RoutedEventArgs e)
     {
         _api.SignOut();
+        UsersNavButton.Visibility = Visibility.Collapsed;
         LoginPasswordBox.Clear();
         LoginErrorText.Text = string.Empty;
         ShellRoot.Visibility = Visibility.Collapsed;
@@ -78,6 +80,7 @@ public partial class MainWindow : Window
             "Inventory" => "Stock position by product and location",
             "Purchasing" => "Purchase orders and approvals",
             "Reports" => "Inventory KPIs and downloadable reports",
+            "Users" => "Manage user accounts, roles and access",
             _ => "Inventory position and warehouse activity"
         };
 
@@ -139,6 +142,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (page == "Users" && !_api.IsInRole("Administrator"))
+        {
+            StatusText.Text = "Administrator access is required to manage users.";
+            return;
+        }
+
         if (page == "Reports")
         {
             var reportPanel = new StackPanel();
@@ -179,6 +188,7 @@ public partial class MainWindow : Window
             "Stock transfers" => "api/stock-transfers",
             "Stock counts" => "api/stock-counts",
             "Returns" => "api/returns",
+            "Users" => "api/users",
             _ => string.Empty
         };
 
@@ -193,7 +203,7 @@ public partial class MainWindow : Window
             StatusText.Text = $"Loading {page.ToLowerInvariant()}...";
             var json = await _api.GetJsonAsync(endpoint);
             var dataGrid = CreateDataGrid(json);
-            if (page is "Customers" or "Sales orders" or "Fulfillment" or "Stock transfers" or "Stock counts" or "Returns")
+            if (page is "Customers" or "Sales orders" or "Fulfillment" or "Stock transfers" or "Stock counts" or "Returns" or "Users")
             {
                 var workspace = new DockPanel();
                 var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
@@ -224,6 +234,21 @@ public partial class MainWindow : Window
                         toolbar.Children.Add(confirmButton);
                         toolbar.Children.Add(cancelOrderButton);
                     }
+                }
+                else if (page == "Users")
+                {
+                    var createUserButton = new Button { Content = "Create user" };
+                    createUserButton.Click += async (_, _) => await CreateUserFromDesktopAsync();
+                    var resetPasswordButton = new Button { Content = "Reset password" };
+                    resetPasswordButton.Click += async (_, _) => await ResetSelectedUserPasswordAsync(dataGrid);
+                    var rolesButton = new Button { Content = "Change role" };
+                    rolesButton.Click += async (_, _) => await ChangeSelectedUserRoleAsync(dataGrid);
+                    var statusButton = new Button { Content = "Activate / deactivate" };
+                    statusButton.Click += async (_, _) => await ToggleSelectedUserStatusAsync(dataGrid);
+                    toolbar.Children.Add(createUserButton);
+                    toolbar.Children.Add(resetPasswordButton);
+                    toolbar.Children.Add(rolesButton);
+                    toolbar.Children.Add(statusButton);
                 }
                 else if (page == "Stock transfers")
                 {
@@ -446,6 +471,82 @@ public partial class MainWindow : Window
                 await _api.PostJsonAsync($"api/fulfillment/shipments/{id}/cancel", new { });
             StatusText.Text = "Fulfillment action completed.";
             await LoadWorkspaceAsync("Fulfillment");
+        }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
+    }
+
+    private async Task CreateUserFromDesktopAsync()
+    {
+        try
+        {
+            var fullName = Prompt("Create IWMS user", "Full name (first and last):");
+            var parts = (fullName ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length < 2) { StatusText.Text = "Enter a first name and last name."; return; }
+            var email = Prompt("Create IWMS user", "Email address:");
+            var password = Prompt("Create IWMS user", "Temporary password (10+ characters, letters and digits):");
+            var role = Prompt("Assign role", "Choose exactly one role: Administrator, Warehouse Manager, Purchaser, Warehouse Operator, Sales Officer, Viewer");
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(role))
+            { StatusText.Text = "User creation cancelled."; return; }
+            await _api.PostJsonAsync("api/users", new
+            {
+                firstName = parts[0],
+                lastName = string.Join(" ", parts.Skip(1)),
+                email,
+                password,
+                roles = new[] { role }
+            });
+            await LoadWorkspaceAsync("Users");
+            StatusText.Text = "User created. Share the temporary password securely.";
+        }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
+    }
+
+    private async Task ResetSelectedUserPasswordAsync(DataGrid grid)
+    {
+        var id = GetSelectedGuid(grid);
+        if (id is null) { StatusText.Text = "Select a user first."; return; }
+        var password = Prompt("Reset user password", "New password (10+ characters, letters and digits):");
+        if (string.IsNullOrWhiteSpace(password)) return;
+        try
+        {
+            await _api.PutJsonAsync($"api/users/{id}/password", new { newPassword = password });
+            StatusText.Text = "Password reset. Share the new password securely.";
+        }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
+    }
+
+    private async Task ChangeSelectedUserRoleAsync(DataGrid grid)
+    {
+        var id = GetSelectedGuid(grid);
+        if (id is null) { StatusText.Text = "Select a user first."; return; }
+        var role = Prompt("Change user role", "Choose exactly one role: Administrator, Warehouse Manager, Purchaser, Warehouse Operator, Sales Officer, Viewer");
+        if (string.IsNullOrWhiteSpace(role)) return;
+        try
+        {
+            await _api.PutJsonAsync($"api/users/{id}/roles", new { roles = new[] { role } });
+            await LoadWorkspaceAsync("Users");
+            StatusText.Text = "User role updated.";
+        }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
+    }
+
+    private async Task ToggleSelectedUserStatusAsync(DataGrid grid)
+    {
+        if (grid.SelectedItem is not DataRowView row || !row.Row.Table.Columns.Contains("id") ||
+            !row.Row.Table.Columns.Contains("isActive"))
+        { StatusText.Text = "Select a user row with an account status."; return; }
+        if (!Guid.TryParse(Convert.ToString(row["id"], CultureInfo.InvariantCulture), out var id))
+        { StatusText.Text = "The selected user ID is invalid."; return; }
+        var isActive = bool.TryParse(Convert.ToString(row["isActive"], CultureInfo.InvariantCulture), out var active) && active;
+        var confirm = MessageBox.Show(
+            isActive ? "Deactivate this account? The user will no longer be able to sign in." : "Activate this account?",
+            "Update user access", MessageBoxButton.YesNo, isActive ? MessageBoxImage.Warning : MessageBoxImage.Question);
+        if (confirm != MessageBoxResult.Yes) return;
+        try
+        {
+            await _api.PutJsonAsync($"api/users/{id}/status", new { isActive = !isActive });
+            await LoadWorkspaceAsync("Users");
+            StatusText.Text = isActive ? "User deactivated." : "User activated.";
         }
         catch (Exception ex) { StatusText.Text = ex.Message; }
     }
