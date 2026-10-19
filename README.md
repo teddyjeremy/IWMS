@@ -54,6 +54,8 @@ GitHub Actions runs on pushes and pull requests targeting `master` or `main`. It
 
 Find the result under **Actions → Build and test → workflow run → Artifacts**. This artifact is the API deployment output, not a complete Windows desktop UI installer. A self-contained publish still needs valid configuration and a reachable PostgreSQL database to run.
 
+Architecture and entity relationship diagrams are in [`docs/architecture.md`](docs/architecture.md).
+
 ## Development roadmap
 
 Work in small, reviewable sections. Keep each commit focused, run the build and tests, and use the Actions result as the checkpoint before moving to the next section.
