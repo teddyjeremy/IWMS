@@ -360,7 +360,7 @@ public sealed class FulfillmentController : ControllerBase
         var order = await _db.SalesOrders.Include(o => o.Lines)
             .SingleOrDefaultAsync(o => o.Id == orderId, ct);
         if (order is null) return NotFound();
-        if (order.Status is SalesOrderStatus.Cancelled or SalesOrderStatus.Dispatched ||
+        if (order.Status is SalesOrderStatus.Cancelled or SalesOrderStatus.Dispatched or SalesOrderStatus.ClosedShort ||
             order.Lines.Any(l => l.QuantityDispatched > 0))
             throw new DomainException("An already cancelled or dispatched order cannot be cancelled.");
 
