@@ -19,9 +19,21 @@ public sealed class ApiClient
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
             throw new ArgumentException("Enter a valid API URL, including https:// or http://.");
+
+        var isLocalDevelopment = uri.IsLoopback ||
+            string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase);
+        if (uri.Scheme != Uri.UriSchemeHttps && !isLocalDevelopment)
+            throw new ArgumentException("For security, remote API servers must use HTTPS. HTTP is allowed only for localhost development.");
+
         BaseUrl = uri.ToString().TrimEnd('/') + "/";
         _http.BaseAddress = new Uri(BaseUrl);
+        SignOut();
+    }
+
+    public void SignOut()
+    {
         _http.DefaultRequestHeaders.Authorization = null;
+        CurrentUserName = null;
     }
 
     public async Task SignInAsync(string email, string password, CancellationToken ct = default)
