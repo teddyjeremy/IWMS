@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using IWMS.Api.Security;
+using IWMS.Api.Reports;
 using IWMS.Application;
 using IWMS.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -126,6 +127,42 @@ public sealed class ReportsController : ControllerBase
 
         return File(new UTF8Encoding(true).GetBytes(csv.ToString()), "text/csv; charset=utf-8",
             $"iwms-inventory-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv");
+    }
+
+
+    [HttpGet("inventory.pdf")]
+    public async Task<IActionResult> ExportInventoryPdf(CancellationToken ct)
+    {
+        var rows = await _db.InventoryBalances.AsNoTracking()
+            .OrderBy(b => b.Product.Sku)
+            .ThenBy(b => b.StorageLocation.Code)
+            .Select(b => new
+            {
+                b.Product.Sku,
+                Product = b.Product.Name,
+                Warehouse = b.StorageLocation.Warehouse.Name,
+                Location = b.StorageLocation.Code,
+                b.OnHand,
+                b.Reserved,
+                Available = b.OnHand - b.Reserved,
+                Value = b.OnHand * (b.Product.CostPrice ?? 0m)
+            }).ToListAsync(ct);
+
+        var lines = new List<string>
+        {
+            "IWMS Inventory Report",
+            $"Generated UTC: {DateTime.UtcNow:yyyy-MM-dd HH:mm}",
+            "",
+            "SKU | Product | Warehouse/Location | On hand | Reserved | Available | Stock value",
+            new string('-', 110)
+        };
+        lines.AddRange(rows.Select(r =>
+            $"{r.Sku} | {r.Product} | {r.Warehouse}/{r.Location} | {r.OnHand} | {r.Reserved} | {r.Available} | {r.Value}"));
+        lines.Add("");
+        lines.Add($"Total stock value: {rows.Sum(r => r.Value)}");
+
+        var bytes = SimplePdfWriter.Create(lines);
+        return File(bytes, "application/pdf", $"iwms-inventory-{DateTime.UtcNow:yyyyMMdd-HHmmss}.pdf");
     }
 
     private static string Csv(string? value)
