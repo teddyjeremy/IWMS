@@ -9,5 +9,6 @@ public enum SalesOrderStatus
     PartiallyDispatched = 5,
     Dispatched = 6,
     Backordered = 7,
-    Cancelled = 8
+    Cancelled = 8,
+    ClosedShort = 9
 }
