@@ -122,7 +122,7 @@ public sealed class SalesOrdersController : ControllerBase
             .Select(p => p.Id)
             .ToListAsync(ct);
 
-        if (activeProductIds.Length != productIds.Length)
+        if (activeProductIds.Count != productIds.Length)
             throw new DomainException("One or more products do not exist or are inactive.");
 
         if (request.RequiredDateUtc.HasValue &&
