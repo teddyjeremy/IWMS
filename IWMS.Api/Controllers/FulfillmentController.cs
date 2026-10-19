@@ -279,6 +279,101 @@ public sealed class FulfillmentController : ControllerBase
 
         return Ok(new { shipment.Id, shipment.Status, shipment.ShipmentNumber, shipment.DispatchedAtUtc });
     }
+
+    [HttpPost("sales-orders/{orderId:guid}/cancel")]
+    [Authorize(Policy = Policies.PostIssue)]
+    public async Task<IActionResult> CancelOrder(Guid orderId, CancellationToken ct)
+    {
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        var order = await _db.SalesOrders.Include(o => o.Lines)
+            .SingleOrDefaultAsync(o => o.Id == orderId, ct);
+        if (order is null) return NotFound();
+        if (order.Status is SalesOrderStatus.Cancelled or SalesOrderStatus.Dispatched ||
+            order.Lines.Any(l => l.QuantityDispatched > 0))
+            throw new DomainException("An already cancelled or dispatched order cannot be cancelled.");
+
+        var reservations = await _db.Reservations
+            .Where(r => r.SalesOrderLine.SalesOrderId == orderId && r.ReleasedAtUtc == null)
+            .ToListAsync(ct);
+        foreach (var reservation in reservations)
+        {
+            var balance = await _db.InventoryBalances.SingleOrDefaultAsync(
+                b => b.ProductId == reservation.SalesOrderLine.ProductId &&
+                     b.StorageLocationId == reservation.StorageLocationId, ct);
+            if (balance is null || balance.Reserved < reservation.Quantity)
+                throw new DomainException("Inventory reservation data is inconsistent; cancellation was stopped.");
+            balance.Reserved -= reservation.Quantity;
+            balance.UpdatedAtUtc = DateTime.UtcNow;
+            reservation.ReleasedAtUtc = DateTime.UtcNow;
+            reservation.SalesOrderLine.QuantityReserved = Math.Max(
+                0, reservation.SalesOrderLine.QuantityReserved - reservation.Quantity);
+        }
+
+        var openShipments = await _db.Shipments
+            .Where(s => s.SalesOrderId == orderId &&
+                        s.Status != ShipmentStatus.Dispatched &&
+                        s.Status != ShipmentStatus.Cancelled)
+            .ToListAsync(ct);
+        foreach (var shipment in openShipments)
+        {
+            shipment.Status = ShipmentStatus.Cancelled;
+            shipment.UpdatedAtUtc = DateTime.UtcNow;
+        }
+
+        foreach (var line in order.Lines)
+            line.QuantityPicked = 0;
+
+        order.Status = SalesOrderStatus.Cancelled;
+        order.UpdatedAtUtc = DateTime.UtcNow;
+        _audit.Record("SalesOrder.Cancelled", nameof(SalesOrder), order.Id,
+            User.GetUserId(), details: $"Cancelled and released {reservations.Count} reservations.");
+        await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return NoContent();
+    }
+
+    [HttpPost("shipments/{shipmentId:guid}/cancel")]
+    [Authorize(Policy = Policies.PostIssue)]
+    public async Task<IActionResult> CancelShipment(Guid shipmentId, CancellationToken ct)
+    {
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        var shipment = await _db.Shipments.Include(s => s.Lines)
+            .ThenInclude(l => l.SalesOrderLine)
+            .Include(s => s.SalesOrder)
+            .SingleOrDefaultAsync(s => s.Id == shipmentId, ct);
+        if (shipment is null) return NotFound();
+        if (shipment.Status is ShipmentStatus.Dispatched or ShipmentStatus.Cancelled)
+            throw new DomainException("This shipment cannot be cancelled.");
+
+        foreach (var line in shipment.Lines)
+        {
+            var salesLineId = line.SalesOrderLineId;
+            line.QuantityPicked = 0;
+            line.SalesOrderLine.QuantityPicked = await _db.ShipmentLines
+                .Where(sl => sl.SalesOrderLineId == salesLineId &&
+                             sl.ShipmentId != shipmentId &&
+                             sl.Shipment.Status != ShipmentStatus.Dispatched &&
+                             sl.Shipment.Status != ShipmentStatus.Cancelled)
+                .SumAsync(sl => (decimal?)sl.QuantityPicked, ct) ?? 0m;
+        }
+
+        shipment.Status = ShipmentStatus.Cancelled;
+        shipment.UpdatedAtUtc = DateTime.UtcNow;
+        var order = shipment.SalesOrder;
+        if (order.Status == SalesOrderStatus.Picking)
+        {
+            var hasReservations = await _db.Reservations.AnyAsync(
+                r => r.SalesOrderLine.SalesOrderId == order.Id && r.ReleasedAtUtc == null, ct);
+            order.Status = hasReservations ? SalesOrderStatus.Reserved : SalesOrderStatus.Backordered;
+            order.UpdatedAtUtc = DateTime.UtcNow;
+        }
+
+        _audit.Record("Shipment.Cancelled", nameof(Shipment), shipment.Id,
+            User.GetUserId(), details: shipment.ShipmentNumber);
+        await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return NoContent();
+    }
 }
 
 public sealed record CreatePickListRequest(string? Notes = null);
