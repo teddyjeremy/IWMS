@@ -82,7 +82,32 @@ public class ProductsController : ControllerBase
                 p.Barcode))
             .ToPagedAsync(page, pageSize, ct);
 
-        return Ok(result);
+        var ids = result.Items.Select(item => item.Id).ToList();
+        var creators = await _db.AuditEvents.AsNoTracking()
+            .Where(audit => audit.Action == "Product.Created" &&
+                            audit.EntityId != null &&
+                            ids.Contains(audit.EntityId.Value))
+            .Select(audit => new
+            {
+                audit.EntityId,
+                audit.CreatedAtUtc,
+                Name = audit.ActorUser == null
+                    ? "System"
+                    : audit.ActorUser.FirstName + " " + audit.ActorUser.LastName
+            })
+            .ToListAsync(ct);
+        var enteredBy = creators
+            .GroupBy(entry => entry.EntityId!.Value)
+            .ToDictionary(group => group.Key, group => group.OrderBy(entry => entry.CreatedAtUtc).First().Name);
+
+        return Ok(new PagedResult<ProductListItem>(
+            result.Items.Select(item => item with
+            {
+                EnteredBy = enteredBy.GetValueOrDefault(item.Id, "Not recorded")
+            }).ToList(),
+            result.Page,
+            result.PageSize,
+            result.TotalCount));
     }
 
     // GET: api/products/{id}

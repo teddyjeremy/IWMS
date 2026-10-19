@@ -1,6 +1,7 @@
 using System.Data;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -242,6 +243,7 @@ public partial class MainWindow : Window
             shell.Children.Add(cards);
             shell.Children.Add(await BuildTrendCardAsync(30, "Movement trend · last 30 days", "Teal bars are receipts. Orange bars are issues. Values come from the inventory ledger."));
             shell.Children.Add(await BuildAlertsPanelAsync());
+            shell.Children.Add(await BuildRecentActivityAsync());
 
             var contentGrid = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, 0, 18) };
             var workload = new StackPanel();
@@ -350,11 +352,13 @@ public partial class MainWindow : Window
                 Margin = new Thickness(0, 8, 0, 0)
             };
             var json = await _api.GetListJsonAsync(endpoint);
+            if (page is "Inventory" or "Sales orders")
+                json = await AttachActorsAsync(json, page == "Inventory" ? "Product" : "SalesOrder", page == "Inventory" ? "Product.Created" : "SalesOrder.Created");
             var dataGrid = CreateDataGrid(json);
             if (page is "Customers" or "Sales orders" or "Inventory" or "Fulfillment" or "Stock transfers" or "Stock counts" or "Returns" or "Users" or "Purchasing" or "Suppliers" or "Receipts" or "Movements" or "Audit")
             {
                 var workspace = new DockPanel();
-                var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+                var toolbar = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
                 AddSearch(toolbar, page);
                 if (page is "Customers" or "Sales orders")
                 {
@@ -432,6 +436,11 @@ public partial class MainWindow : Window
                                 StatusText.Text = "Select a customer first.";
                                 return;
                             }
+                            if (!IsActiveRow(dataGrid))
+                            {
+                                StatusText.Text = "This customer is already inactive.";
+                                return;
+                            }
                             if (MessageBox.Show("Deactivate this customer? Existing order history will be retained.",
                                 "Deactivate customer", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
                                 return;
@@ -450,7 +459,7 @@ public partial class MainWindow : Window
                     {
                         var confirmButton = new Button { Content = "Confirm selected", Visibility = canManageSalesOrders ? Visibility.Visible : Visibility.Collapsed };
                         confirmButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "confirm-order", "Sales orders");
-                        var cancelOrderButton = new Button { Content = "Cancel selected", Visibility = canManageSalesOrders ? Visibility.Visible : Visibility.Collapsed };
+                        var cancelOrderButton = new Button { Content = "Reject / cancel", Visibility = canManageSalesOrders ? Visibility.Visible : Visibility.Collapsed };
                         cancelOrderButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "cancel-draft", "Sales orders");
                         toolbar.Children.Add(confirmButton);
                         toolbar.Children.Add(cancelOrderButton);
@@ -821,11 +830,21 @@ public partial class MainWindow : Window
                     toolbar.Children.Add(dispatchButton);
                     toolbar.Children.Add(cancelButton);
                 }
-                DockPanel.SetDock(toolbar, Dock.Top);
+                    if (page == "Inventory")
+                        AddStockFilters(toolbar, dataGrid);
+                    DockPanel.SetDock(toolbar, Dock.Top);
                 workspace.Children.Add(toolbar);
                 if (page is not ("Customers" or "Sales orders" or "Inventory" or "Purchasing" or "Suppliers"))
                     ApplyClientFilter(dataGrid);
-                workspace.Children.Add(dataGrid);
+                workspace.Children.Add(new Border
+                {
+                    Background = Brushes.White,
+                    BorderBrush = Brush("#E2E8F0"),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(12),
+                    Padding = new Thickness(2),
+                    Child = dataGrid
+                });
                 PageContent.Content = workspace;
             }
             else
@@ -900,15 +919,34 @@ public partial class MainWindow : Window
             GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
             HeadersVisibility = DataGridHeadersVisibility.Column,
             AlternatingRowBackground = System.Windows.Media.Brushes.WhiteSmoke,
-            SelectionMode = DataGridSelectionMode.Single
+            SelectionMode = DataGridSelectionMode.Single,
+            SelectionUnit = DataGridSelectionUnit.FullRow,
+            HeadersVisibility = DataGridHeadersVisibility.Column
         };
         grid.AutoGeneratingColumn += (_, args) =>
         {
             var name = args.PropertyName;
-            if (name.Equals("id", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("version", StringComparison.OrdinalIgnoreCase))
+            if (IsHiddenColumn(name))
                 args.Column.Visibility = Visibility.Collapsed;
             args.Column.Header = Humanize(name);
+            if (name.Equals("status", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("isActive", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("isLowStock", StringComparison.OrdinalIgnoreCase))
+                args.Column.Width = new DataGridLength(130);
+        };
+        grid.LoadingRow += (_, args) =>
+        {
+            if (args.Row.Item is not DataRowView row)
+                return;
+            var status = SelectedStatus(row);
+            args.Row.Background = status switch
+            {
+                "Cancelled" or "Rejected" or "ClosedShort" => Brush("#FEF2F2"),
+                "Draft" => Brush("#FFFBEB"),
+                "Submitted" or "Pending" or "PendingReview" or "Counting" => Brush("#EFF6FF"),
+                "Approved" or "Confirmed" or "Dispatched" or "Received" => Brush("#ECFDF5"),
+                _ => args.Row.GetIndex() % 2 == 1 ? Brush("#F8FAFC") : Brushes.White
+            };
         };
         grid.ItemsSource = table.DefaultView;
         return grid;
@@ -931,8 +969,14 @@ public partial class MainWindow : Window
                 return "Yes";
             case JsonValueKind.False:
                 return "No";
+            case JsonValueKind.Array:
+                return string.Join(", ", value.EnumerateArray().Select(FormatJsonValue).Where(part => part.Length > 0));
+            case JsonValueKind.Object:
+                if (value.TryGetProperty("name", out var named))
+                    return FormatJsonValue(named);
+                return string.Empty;
             default:
-                return value.ToString();
+                return string.Empty;
         }
     }
 
@@ -975,9 +1019,27 @@ public partial class MainWindow : Window
             else if (action == "pick-list")
                 await _api.PostJsonAsync($"api/fulfillment/sales-orders/{id}/pick-list", new { });
             else if (action == "confirm-order")
+            {
+                if (!StatusAllows(grid, "", "Draft"))
+                {
+                    StatusText.Text = "Only a draft sales order can be confirmed.";
+                    return;
+                }
                 await _api.PostJsonAsync($"api/sales-orders/{id}/confirm", new { });
+            }
             else if (action == "cancel-draft")
-                await _api.PostJsonAsync($"api/sales-orders/{id}/cancel", new { });
+            {
+                var status = SelectedStatus(grid);
+                if (status is "Dispatched" or "Cancelled" or "ClosedShort")
+                {
+                    StatusText.Text = $"A {status.ToLowerInvariant()} sales order cannot be rejected.";
+                    return;
+                }
+                if (status is "Reserved" or "Picking" or "PartiallyDispatched" or "Backordered")
+                    await _api.PostJsonAsync($"api/fulfillment/sales-orders/{id}/cancel", new { });
+                else
+                    await _api.PostJsonAsync($"api/sales-orders/{id}/cancel", new { });
+            }
             else if (action == "cancel-order")
                 await _api.PostJsonAsync($"api/fulfillment/sales-orders/{id}/cancel", new { });
             else if (action == "close-short")
@@ -1001,6 +1063,12 @@ public partial class MainWindow : Window
         if (id is null) { StatusText.Text = "Select a purchase order first."; return; }
         try
         {
+            if (action == "submit" && !StatusAllows(grid, "", "Draft"))
+            { StatusText.Text = "Only a draft purchase order can be submitted."; return; }
+            if (action is "approve" or "reject" && !StatusAllows(grid, "", "Submitted"))
+            { StatusText.Text = "Only a submitted purchase order can be approved or rejected. Submit the draft first."; return; }
+            if (action == "cancel" && !StatusAllows(grid, "", "Draft", "Submitted", "Approved", "Rejected"))
+            { StatusText.Text = "This purchase order can no longer be cancelled. Reverse any receipts first."; return; }
             if (action == "submit")
                 await _api.PostJsonAsync($"api/purchase-orders/{id}/submit", new { });
             else if (action == "approve")
@@ -1021,21 +1089,16 @@ public partial class MainWindow : Window
     {
         try
         {
-            var fullName = Prompt("Create IWMS user", "Full name (first and last):");
-            var parts = (fullName ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length < 2) { StatusText.Text = "Enter a first name and last name."; return; }
-            var email = Prompt("Create IWMS user", "Email address:");
-            var password = Prompt("Create IWMS user", "Temporary password (10+ characters, letters and digits):");
-            var role = Prompt("Assign role", "Choose exactly one role: Administrator, Warehouse Manager, Purchaser, Warehouse Operator, Sales Officer, Viewer");
-            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(role))
+            var dialog = new UserAccountWindow { Owner = this };
+            if (dialog.ShowDialog() != true)
             { StatusText.Text = "User creation cancelled."; return; }
             await _api.PostJsonAsync("api/users", new
             {
-                firstName = parts[0],
-                lastName = string.Join(" ", parts.Skip(1)),
-                email,
-                password,
-                roles = new[] { role }
+                firstName = dialog.FirstNameText,
+                lastName = dialog.LastNameText,
+                email = dialog.EmailText,
+                password = dialog.PasswordText,
+                roles = new[] { dialog.RoleText }
             });
             await LoadWorkspaceAsync("Users");
             StatusText.Text = "User created. Share the temporary password securely.";
@@ -1061,7 +1124,7 @@ public partial class MainWindow : Window
     {
         var id = GetSelectedGuid(grid);
         if (id is null) { StatusText.Text = "Select a user first."; return; }
-        var role = Prompt("Change user role", "Choose exactly one role: Administrator, Warehouse Manager, Purchaser, Warehouse Operator, Sales Officer, Viewer");
+        var role = UserAccountWindow.PromptRole(this, SelectedText(grid, "roles"));
         if (string.IsNullOrWhiteSpace(role)) return;
         try
         {
@@ -1079,7 +1142,7 @@ public partial class MainWindow : Window
         { StatusText.Text = "Select a user row with an account status."; return; }
         if (!Guid.TryParse(Convert.ToString(row["id"], CultureInfo.InvariantCulture), out var id))
         { StatusText.Text = "The selected user ID is invalid."; return; }
-        var isActive = bool.TryParse(Convert.ToString(row["isActive"], CultureInfo.InvariantCulture), out var active) && active;
+        var isActive = IsActiveRow(grid);
         var confirm = MessageBox.Show(
             isActive ? "Deactivate this account? The user will no longer be able to sign in." : "Activate this account?",
             "Update user access", MessageBoxButton.YesNo, isActive ? MessageBoxImage.Warning : MessageBoxImage.Question);
@@ -1421,8 +1484,9 @@ public partial class MainWindow : Window
         })
         {
             var active = button.Tag is string tag && tag == page;
-            button.Background = active ? Brush("#1B4E68") : Brushes.Transparent;
-            button.Foreground = active ? Brushes.White : Brush("#D7E6EF");
+            button.Background = active ? Brush("#E7F0F8") : Brushes.Transparent;
+            button.Foreground = active ? Brush("#0F3D56") : Brush("#334155");
+            button.FontWeight = active ? FontWeights.Bold : FontWeights.SemiBold;
         }
     }
 
@@ -1466,7 +1530,7 @@ public partial class MainWindow : Window
         return new string(chars.ToArray()).Replace("Utc", "UTC", StringComparison.Ordinal);
     }
 
-    private void AddSearch(StackPanel toolbar, string page)
+    private void AddSearch(Panel toolbar, string page)
     {
         var box = new TextBox { Width = 200, Text = _listSearch, Margin = new Thickness(0, 0, 8, 8), ToolTip = "Search this workspace" };
         var search = ActionButton("Search");
@@ -1606,4 +1670,171 @@ public partial class MainWindow : Window
     }
 
     private sealed record CountWarehouseChoice(string Id, string Label);
+
+    private static bool IsHiddenColumn(string name)
+    {
+        if (name.Equals("id", StringComparison.OrdinalIgnoreCase) ||
+            name.Equals("version", StringComparison.OrdinalIgnoreCase) ||
+            name.Equals("entityId", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return name.EndsWith("Id", StringComparison.Ordinal);
     }
+
+    private static string SelectedStatus(DataGrid grid) =>
+        grid.SelectedItem is DataRowView row ? SelectedText(row, "status") : string.Empty;
+
+    private static string SelectedStatus(DataRowView row) => SelectedText(row, "status");
+
+    private static string SelectedText(DataGrid grid, string column) =>
+        grid.SelectedItem is DataRowView row ? SelectedText(row, column) : string.Empty;
+
+    private static string SelectedText(DataRowView row, string column)
+    {
+        foreach (DataColumn dataColumn in row.Row.Table.Columns)
+        {
+            if (dataColumn.ColumnName.Equals(column, StringComparison.OrdinalIgnoreCase))
+                return Convert.ToString(row[dataColumn], CultureInfo.InvariantCulture) ?? string.Empty;
+        }
+        return string.Empty;
+    }
+
+    private static bool StatusAllows(DataGrid grid, params string[] allowed)
+    {
+        var status = SelectedStatus(grid);
+        return allowed.Any(value => string.Equals(value, status, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsActiveRow(DataGrid grid)
+    {
+        var text = SelectedText(grid, "isActive");
+        return text.Equals("Yes", StringComparison.OrdinalIgnoreCase) ||
+               text.Equals("True", StringComparison.OrdinalIgnoreCase) ||
+               text == "1";
+    }
+
+    private void AddStockFilters(Panel toolbar, DataGrid grid)
+    {
+        void Filter(string label, string rowFilter)
+        {
+            var button = ActionButton(label);
+            button.Click += (_, _) =>
+            {
+                try
+                {
+                    if (grid.ItemsSource is DataView view)
+                        view.RowFilter = rowFilter;
+                }
+                catch (Exception ex) { StatusText.Text = ex.Message; }
+            };
+            toolbar.Children.Add(button);
+        }
+        Filter("All stock", string.Empty);
+        Filter("In stock", "isLowStock = 'No'");
+        Filter("Reorder / low", "isLowStock = 'Yes'");
+        Filter("Inactive", "isActive = 'No'");
+    }
+
+    private async Task<JsonElement> AttachActorsAsync(JsonElement json, string entityName, string action)
+    {
+        JsonNode? root;
+        try { root = JsonNode.Parse(json.GetRawText()); }
+        catch (JsonException) { return json; }
+        var items = root as JsonArray ?? root?["items"] as JsonArray;
+        if (items is null)
+            return json;
+
+        Dictionary<string, string> actors;
+        try
+        {
+            var audit = await _api.GetListJsonAsync($"api/audit-events?entityName={Uri.EscapeDataString(entityName)}&action={Uri.EscapeDataString(action)}");
+            actors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var auditItems = audit.ValueKind == JsonValueKind.Array
+                ? audit
+                : audit.TryGetProperty("items", out var nested) ? nested : default;
+            if (auditItems.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var entry in auditItems.EnumerateArray())
+                {
+                    var id = entry.TryGetProperty("entityId", out var idElement) ? idElement.ToString().Trim('"') : string.Empty;
+                    var actor = entry.TryGetProperty("actor", out var actorElement) && actorElement.ValueKind == JsonValueKind.String
+                        ? actorElement.GetString()
+                        : null;
+                    if (!string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(actor) && !actors.ContainsKey(id))
+                        actors[id] = actor!;
+                }
+            }
+        }
+        catch
+        {
+            return json;
+        }
+
+        foreach (var node in items)
+        {
+            if (node is not JsonObject item)
+                continue;
+            if (item["enteredBy"] is JsonValue existing && existing.ToString().Trim('"').Length > 0)
+                continue;
+            var id = item["id"]?.ToString().Trim('"');
+            item["enteredBy"] = id is not null && actors.TryGetValue(id, out var actor) ? actor : "Not recorded";
+        }
+        return JsonSerializer.SerializeToElement(root);
+    }
+
+    private async Task<UIElement> BuildRecentActivityAsync()
+    {
+        var body = new StackPanel();
+        body.Children.Add(new TextBlock { Text = "Recent stock activity", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brush("#142B45"), Margin = new Thickness(0, 8, 0, 4) });
+        body.Children.Add(new TextBlock { Text = "Who moved stock, and by how much.", FontSize = 12, Foreground = Brush("#64748B"), Margin = new Thickness(0, 0, 0, 8) });
+        try
+        {
+            var json = await _api.GetJsonAsync("api/movements?page=1&pageSize=8");
+            if (json.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in items.EnumerateArray())
+                {
+                    var change = item.TryGetProperty("quantityChange", out var qty) ? qty.GetDecimal() : 0m;
+                    var who = item.TryGetProperty("performedBy", out var person) ? person.GetString() : "Unknown";
+                    var sku = item.TryGetProperty("sku", out var skuElement) ? skuElement.GetString() : "";
+                    var name = item.TryGetProperty("productName", out var nameElement) ? nameElement.GetString() : "";
+                    var when = item.TryGetProperty("createdAtUtc", out var whenElement) && whenElement.ValueKind == JsonValueKind.String &&
+                               DateTime.TryParse(whenElement.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var timestamp)
+                        ? timestamp.ToLocalTime().ToString("dd MMM HH:mm", CultureInfo.CurrentCulture)
+                        : "";
+                    var row = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    var text = new StackPanel();
+                    text.Children.Add(new TextBlock { Text = $"{sku}  {name}", FontWeight = FontWeights.SemiBold, Foreground = Brush("#142B45") });
+                    text.Children.Add(new TextBlock { Text = $"{who} · {when}", FontSize = 12, Foreground = Brush("#64748B") });
+                    Grid.SetColumn(text, 0);
+                    var delta = new TextBlock
+                    {
+                        Text = change > 0 ? $"+{change:0.####}" : change.ToString("0.####"),
+                        FontWeight = FontWeights.Bold,
+                        Foreground = change < 0 ? Brush("#B42318") : Brush("#0F766E"),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(delta, 1);
+                    row.Children.Add(text);
+                    row.Children.Add(delta);
+                    body.Children.Add(row);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            body.Children.Add(new TextBlock { Text = ex.Message, Foreground = Brush("#B42318"), TextWrapping = TextWrapping.Wrap });
+        }
+        return new Border
+        {
+            Background = Brushes.White,
+            BorderBrush = Brush("#E2E8F0"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(16),
+            Margin = new Thickness(0, 0, 0, 16),
+            Child = body
+        };
+    }
+}

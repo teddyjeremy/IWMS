@@ -54,7 +54,8 @@ public sealed class SalesOrdersController : ControllerBase
                 o.Status,
                 o.RequiredDateUtc,
                 o.Lines.Sum(l => (decimal?)l.QuantityOrdered) ?? 0m,
-                o.Lines.Sum(l => (decimal?)(l.QuantityOrdered * l.UnitPrice)) ?? 0m))
+                o.Lines.Sum(l => (decimal?)(l.QuantityOrdered * l.UnitPrice)) ?? 0m,
+                o.CreatedByUser.FirstName + " " + o.CreatedByUser.LastName))
             .ToListAsync(ct);
 
         return Ok(orders);
@@ -311,7 +312,8 @@ public sealed record SalesOrderListItem(
     SalesOrderStatus Status,
     DateTime? RequiredDateUtc,
     decimal TotalQuantity,
-    decimal TotalValue);
+    decimal TotalValue,
+    string EnteredBy);
 
 public sealed record SalesOrderLineDetail(
     Guid Id,

@@ -79,7 +79,7 @@ public sealed class ApiClient
     {
         using var response = await _http.GetAsync(path, ct);
         if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Request failed ({(int)response.StatusCode}) for {path}.");
+            throw new InvalidOperationException(await ReadFailureAsync(response, path, ct));
         return await response.Content.ReadFromJsonAsync<T>(JsonOptions, ct)
             ?? throw new InvalidOperationException("The API returned an empty response.");
     }
@@ -88,26 +88,20 @@ public sealed class ApiClient
     {
         using var response = await _http.PostAsJsonAsync(path, payload, JsonOptions, ct);
         if (!response.IsSuccessStatusCode)
-        {
-            var detail = await response.Content.ReadAsStringAsync(ct);
-            throw new InvalidOperationException($"Request failed ({(int)response.StatusCode}): {detail}");
-        }
+            throw new InvalidOperationException(await ReadFailureAsync(response, path, ct));
     }
 
     public async Task PutJsonAsync(string path, object payload, CancellationToken ct = default)
     {
         using var response = await _http.PutAsJsonAsync(path, payload, JsonOptions, ct);
         if (!response.IsSuccessStatusCode)
-        {
-            var detail = await response.Content.ReadAsStringAsync(ct);
-            throw new InvalidOperationException($"Request failed ({(int)response.StatusCode}): {detail}");
-        }
+            throw new InvalidOperationException(await ReadFailureAsync(response, path, ct));
     }
     public async Task<JsonElement> GetJsonAsync(string path, CancellationToken ct = default)
     {
         using var response = await _http.GetAsync(path, ct);
         if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Request failed ({(int)response.StatusCode}) for {path}.");
+            throw new InvalidOperationException(await ReadFailureAsync(response, path, ct));
         return await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions, ct);
     }
 
@@ -156,7 +150,7 @@ public sealed class ApiClient
     {
         using var response = await _http.GetAsync(path, ct);
         if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Request failed ({(int)response.StatusCode}) for {path}.");
+            throw new InvalidOperationException(await ReadFailureAsync(response, path, ct));
         return await response.Content.ReadAsByteArrayAsync(ct);
     }
 
@@ -165,7 +159,53 @@ public sealed class ApiClient
         using var response = await _http.PostAsJsonAsync(path, payload, JsonOptions, ct);
         var detail = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Request failed ({(int)response.StatusCode}): {detail}");
+            throw new InvalidOperationException(ExplainFailure((int)response.StatusCode, path, detail));
+        return detail;
+    }
+
+    private static async Task<string> ReadFailureAsync(HttpResponseMessage response, string path, CancellationToken ct)
+    {
+        var body = await response.Content.ReadAsStringAsync(ct);
+        return ExplainFailure((int)response.StatusCode, path, body);
+    }
+
+    private static string ExplainFailure(int status, string path, string body)
+    {
+        var detail = string.Empty;
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(body);
+                var root = document.RootElement;
+                if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (root.TryGetProperty("detail", out var problem) && problem.ValueKind == JsonValueKind.String)
+                        detail = problem.GetString() ?? string.Empty;
+                    else if (root.TryGetProperty("title", out var title) && title.ValueKind == JsonValueKind.String)
+                        detail = title.GetString() ?? string.Empty;
+                    else if (root.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String)
+                        detail = message.GetString() ?? string.Empty;
+                }
+                else if (root.ValueKind == JsonValueKind.String)
+                    detail = root.GetString() ?? string.Empty;
+            }
+            catch (JsonException)
+            {
+                detail = body.Trim();
+            }
+        }
+
+        if (status == 404)
+            return string.IsNullOrWhiteSpace(detail)
+                ? "That record or action was not found. Refresh the list and try the row again."
+                : detail;
+        if (status == 401)
+            return "Your session expired. Sign in again.";
+        if (status == 403)
+            return "Your role is not allowed to do that.";
+        if (string.IsNullOrWhiteSpace(detail))
+            return $"The server rejected the request ({status}) for {path}.";
         return detail;
     }
 }

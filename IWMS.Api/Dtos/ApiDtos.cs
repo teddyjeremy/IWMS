@@ -8,7 +8,10 @@ public record ProductListItem(
     Guid Id, string Sku, string Name, string Category, UnitOfMeasure BaseUnit,
     decimal OnHand, decimal Reserved, decimal Available,
     decimal ReorderLevel, bool IsLowStock, bool IsActive,
-    bool TrackLots = false, bool TrackSerials = false, string? Barcode = null);
+    bool TrackLots = false, bool TrackSerials = false, string? Barcode = null)
+{
+    public string EnteredBy { get; init; } = "Not recorded";
+}
 
 public record StockByLocation(
     Guid StorageLocationId, string Warehouse, string Location,

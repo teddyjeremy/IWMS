@@ -11,30 +11,30 @@
                 <ColumnDefinition Width="248"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <Border Background="#102A3C" Grid.Column="0">
+            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Grid.Column="0">
                 <DockPanel Margin="16,18,16,16">
                     <StackPanel DockPanel.Dock="Top" Margin="4,4,4,16">
-                        <TextBlock Text="IWMS" Foreground="White" FontSize="26" FontWeight="Bold"/>
-                        <TextBlock Text="WAREHOUSE OPERATIONS" Foreground="#9BB6C6" FontSize="10" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                        <TextBlock Text="IWMS" Foreground="#102A3C" FontSize="26" FontWeight="Bold"/>
+                        <TextBlock Text="WAREHOUSE OPERATIONS" Foreground="#64748B" FontSize="10" FontWeight="SemiBold" Margin="0,4,0,0"/>
                     </StackPanel>
                     <StackPanel DockPanel.Dock="Bottom">
-                        <Border Height="1" Background="#2C4A5C" Margin="0,0,0,12"/>
-                        <TextBlock x:Name="ConnectionLabel" Text="Signed in" Foreground="#E7F0F5" TextWrapping="Wrap" FontWeight="SemiBold" Margin="4,0,0,2"/>
-                        <TextBlock x:Name="RoleLabel" Text="Workspace" Foreground="#8EADC0" FontSize="12" Margin="4,0,0,12"/>
+                        <Border Height="1" Background="#E2E8F0" Margin="0,0,0,12"/>
+                        <TextBlock x:Name="ConnectionLabel" Text="Signed in" Foreground="#152433" TextWrapping="Wrap" FontWeight="SemiBold" Margin="4,0,0,2"/>
+                        <TextBlock x:Name="RoleLabel" Text="Workspace" Foreground="#64748B" FontSize="12" Margin="4,0,0,12"/>
                         <Button Content="Sign out" Style="{StaticResource NavButton}" Click="SignOut_Click"/>
                     </StackPanel>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
-                            <TextBlock Text="OVERVIEW" Foreground="#7F9AAD" FontSize="10" FontWeight="Bold" Margin="12,4,0,6"/>
+                            <TextBlock Text="OVERVIEW" Foreground="#94A3B8" FontSize="10" FontWeight="Bold" Margin="12,4,0,6"/>
                             <Button x:Name="DashboardNavButton" Content="Dashboard" Tag="Dashboard" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <Button x:Name="AlertsNavButton" Content="Alerts" Tag="Alerts" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <Button x:Name="ReportsNavButton" Content="Reports" Tag="Reports" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
-                            <TextBlock x:Name="CommercialHeading" Text="COMMERCIAL" Foreground="#7F9AAD" FontSize="10" FontWeight="Bold" Margin="12,14,0,6"/>
+                            <TextBlock x:Name="CommercialHeading" Text="COMMERCIAL" Foreground="#94A3B8" FontSize="10" FontWeight="Bold" Margin="12,14,0,6"/>
                             <Button x:Name="CustomersNavButton" Content="Customers" Tag="Customers" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <Button x:Name="SalesOrdersNavButton" Content="Sales orders" Tag="Sales orders" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <Button x:Name="SuppliersNavButton" Content="Suppliers" Tag="Suppliers" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <Button x:Name="PurchasingNavButton" Content="Purchasing" Tag="Purchasing" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
-                            <TextBlock x:Name="WarehouseHeading" Text="WAREHOUSE" Foreground="#7F9AAD" FontSize="10" FontWeight="Bold" Margin="12,14,0,6"/>
+                            <TextBlock x:Name="WarehouseHeading" Text="WAREHOUSE" Foreground="#94A3B8" FontSize="10" FontWeight="Bold" Margin="12,14,0,6"/>
                             <Button x:Name="InventoryNavButton" Content="Inventory" Tag="Inventory" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <Button x:Name="WarehousesNavButton" Content="Warehouses" Tag="Warehouses" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <Button x:Name="FulfillmentNavButton" Content="Fulfillment" Tag="Fulfillment" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
@@ -43,7 +43,7 @@
                             <Button x:Name="ReturnsNavButton" Content="Returns" Tag="Returns" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <Button x:Name="ReceiptsNavButton" Content="Receipts" Tag="Receipts" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
                             <Button x:Name="MovementsNavButton" Content="Movements" Tag="Movements" Style="{StaticResource NavButton}" Click="Navigate_Click"/>
-                            <TextBlock x:Name="AdminHeading" Text="ADMINISTRATION" Foreground="#7F9AAD" FontSize="10" FontWeight="Bold" Margin="12,14,0,6"/>
+                            <TextBlock x:Name="AdminHeading" Text="ADMINISTRATION" Foreground="#94A3B8" FontSize="10" FontWeight="Bold" Margin="12,14,0,6"/>
                             <Button x:Name="AuditNavButton" Content="Audit trail" Tag="Audit" Style="{StaticResource NavButton}" Click="Navigate_Click" Visibility="Collapsed"/>
                             <Button x:Name="UsersNavButton" Content="Users &amp; access" Tag="Users" Style="{StaticResource NavButton}" Click="Navigate_Click" Visibility="Collapsed"/>
                         </StackPanel>
