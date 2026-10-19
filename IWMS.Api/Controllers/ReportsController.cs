@@ -50,7 +50,8 @@ public sealed class ReportsController : ControllerBase
 
         var openSalesOrders = await _db.SalesOrders.AsNoTracking()
             .CountAsync(o => o.Status != SalesOrderStatus.Cancelled &&
-                             o.Status != SalesOrderStatus.Dispatched, ct);
+                             o.Status != SalesOrderStatus.Dispatched &&
+                             o.Status != SalesOrderStatus.ClosedShort, ct);
 
         return Ok(new DashboardReport(
             stockValue,
