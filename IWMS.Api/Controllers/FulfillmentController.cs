@@ -404,6 +404,87 @@ public sealed class FulfillmentController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("sales-orders/{orderId:guid}/close-short")]
+    [Authorize(Policy = Policies.PostIssue)]
+    public async Task<IActionResult> CloseShort(Guid orderId, CancellationToken ct)
+    {
+        await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+        var order = await _db.SalesOrders.Include(o => o.Lines)
+            .SingleOrDefaultAsync(o => o.Id == orderId, ct);
+        if (order is null) return NotFound();
+
+        if (order.Status is SalesOrderStatus.Draft or SalesOrderStatus.Confirmed or
+            SalesOrderStatus.Cancelled or SalesOrderStatus.Dispatched or SalesOrderStatus.ClosedShort)
+            throw new DomainException(
+                "Only active orders in reservation, picking, backorder or partial-dispatch workflow can be closed short.");
+
+        if (!order.Lines.Any(l => l.QuantityDispatched > 0) &&
+            order.Status is not (SalesOrderStatus.Backordered or SalesOrderStatus.Picking))
+            throw new DomainException(
+                "Close an order short only after fulfillment has started or a stock shortage has been recorded.");
+
+        var reservations = await _db.Reservations
+            .Where(r => r.SalesOrderLine.SalesOrderId == orderId && r.ReleasedAtUtc == null)
+            .ToListAsync(ct);
+
+        foreach (var reservation in reservations)
+        {
+            var balance = await _db.InventoryBalances.SingleOrDefaultAsync(
+                b => b.ProductId == reservation.SalesOrderLine.ProductId &&
+                     b.StorageLocationId == reservation.StorageLocationId, ct);
+            if (balance is null || balance.Reserved < reservation.Quantity)
+                throw new DomainException(
+                    "Inventory reservation data is inconsistent; short-closing was stopped.");
+
+            balance.Reserved -= reservation.Quantity;
+            balance.UpdatedAtUtc = DateTime.UtcNow;
+            reservation.ReleasedAtUtc = DateTime.UtcNow;
+            reservation.SalesOrderLine.QuantityReserved = Math.Max(
+                0, reservation.SalesOrderLine.QuantityReserved - reservation.Quantity);
+        }
+
+        var openShipments = await _db.Shipments
+            .Where(s => s.SalesOrderId == orderId &&
+                        s.Status != ShipmentStatus.Dispatched &&
+                        s.Status != ShipmentStatus.Cancelled)
+            .Include(s => s.Lines)
+            .ToListAsync(ct);
+
+        foreach (var shipment in openShipments)
+        {
+            shipment.Status = ShipmentStatus.Cancelled;
+            shipment.UpdatedAtUtc = DateTime.UtcNow;
+            foreach (var line in shipment.Lines)
+                line.QuantityPicked = 0;
+        }
+
+        foreach (var line in order.Lines)
+        {
+            line.QuantityReserved = 0;
+            line.QuantityPicked = 0;
+        }
+
+        order.Status = SalesOrderStatus.ClosedShort;
+        order.UpdatedAtUtc = DateTime.UtcNow;
+        _audit.Record("SalesOrder.ClosedShort", nameof(SalesOrder), order.Id,
+            User.GetUserId(),
+            details: $"Closed with {order.Lines.Sum(l => Math.Max(0, l.QuantityOrdered - l.QuantityDispatched))} units unfulfilled; released {reservations.Count} reservations.");
+
+        await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+
+        return Ok(new
+        {
+            order.Id,
+            order.OrderNumber,
+            order.Status,
+            QuantityOrdered = order.Lines.Sum(l => l.QuantityOrdered),
+            QuantityDispatched = order.Lines.Sum(l => l.QuantityDispatched),
+            QuantityClosedShort = order.Lines.Sum(l =>
+                Math.Max(0, l.QuantityOrdered - l.QuantityDispatched))
+        });
+    }
+
     [HttpPost("shipments/{shipmentId:guid}/cancel")]
     [Authorize(Policy = Policies.PostIssue)]
     public async Task<IActionResult> CancelShipment(Guid shipmentId, CancellationToken ct)
