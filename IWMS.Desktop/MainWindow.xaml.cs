@@ -1607,4 +1607,3 @@ public partial class MainWindow : Window
 
     private sealed record CountWarehouseChoice(string Id, string Label);
     }
-}
