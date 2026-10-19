@@ -136,13 +136,19 @@ public partial class MainWindow : Window
 
     private void ShowDashboard()
     {
-        PageContent.Content = new TextBlock
+        PageContent.Content = new Border
         {
-            Text = "Connect to the API to view current stock value, low-stock products and order activity.",
-            TextWrapping = TextWrapping.Wrap,
-            FontSize = 16,
-            Foreground = System.Windows.Media.Brushes.Gray,
-            Margin = new Thickness(0, 8, 0, 0)
+            Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#F5F8FC")!,
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(24),
+            Child = new StackPanel
+            {
+                Children =
+                {
+                    new TextBlock { Text = "Operations overview", FontSize = 25, FontWeight = FontWeights.Bold, Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#142B45")! },
+                    new TextBlock { Text = "Sign in to view live inventory, orders, purchasing and warehouse activity.", FontSize = 14, Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#63758A")!, Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap }
+                }
+            }
         };
     }
 
@@ -157,56 +163,94 @@ public partial class MainWindow : Window
         try
         {
             var data = await _api.GetAsync<DashboardDto>("api/reports/dashboard");
-            var isAdmin = _api.IsInRole("Administrator");
-            var isManager = _api.IsInRole("Warehouse Manager");
-            var isPurchaser = _api.IsInRole("Purchaser");
-            var isOperator = _api.IsInRole("Warehouse Operator");
-            var isSales = _api.IsInRole("Sales Officer");
-            var isAuditor = _api.IsInRole("Viewer") || _api.IsInRole("Auditor");
-            var metrics = new List<(string Label, string Value)>();
+            var admin = _api.IsInRole("Administrator");
+            var manager = _api.IsInRole("Warehouse Manager");
+            var purchaser = _api.IsInRole("Purchaser");
+            var operatorRole = _api.IsInRole("Warehouse Operator");
+            var sales = _api.IsInRole("Sales Officer");
+            var viewer = _api.IsInRole("Viewer") || _api.IsInRole("Auditor") || _api.IsInRole("Viewer/Auditor");
 
-            if (isAdmin || isManager || isPurchaser || isAuditor)
-                metrics.Add(("Stock value", data.StockValue.ToString("N2", CultureInfo.InvariantCulture)));
-            if (isAdmin || isManager || isPurchaser || isOperator || isAuditor)
-                metrics.Add(("Low-stock products", data.LowStockProducts.ToString("N0")));
-            if (isAdmin || isManager || isPurchaser)
-                metrics.Add(("Open purchase orders", data.OpenPurchaseOrders.ToString("N0")));
-            if (isAdmin || isManager || isPurchaser)
-                metrics.Add(("Pending approvals", data.PendingApprovals.ToString("N0")));
-            if (isAdmin || isManager || isOperator || isSales || isAuditor)
-                metrics.Add(("Open sales orders", data.OpenSalesOrders.ToString("N0")));
-            if (isAdmin || isManager || isOperator || isSales || isAuditor)
-                metrics.Add(("Units reserved", data.UnitsReserved.ToString("N2", CultureInfo.InvariantCulture)));
-
-            if (metrics.Count == 0)
+            var shell = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+            shell.Children.Add(new TextBlock
             {
-                metrics.Add(("Low-stock products", data.LowStockProducts.ToString("N0")));
-                metrics.Add(("Open sales orders", data.OpenSalesOrders.ToString("N0")));
-            }
-
-            var panel = new UniformGrid
-            {
-                Columns = 3,
-                Rows = (int)Math.Ceiling(metrics.Count / 3d),
-                Margin = new Thickness(0, 4, 0, 0)
-            };
-            foreach (var metric in metrics)
-                AddMetric(panel, metric.Label, metric.Value);
-
-            var dashboard = new StackPanel();
-            dashboard.Children.Add(new TextBlock
-            {
-                Text = $"Welcome, {_api.CurrentUserName}",
-                FontSize = 20,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#152433")!,
-                Margin = new Thickness(0, 0, 0, 16)
+                Text = "Good " + (DateTime.Now.Hour < 12 ? "morning" : DateTime.Now.Hour < 18 ? "afternoon" : "evening") + ", " + (_api.CurrentUserName ?? "team"),
+                FontSize = 27, FontWeight = FontWeights.Bold,
+                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#142B45")!,
+                Margin = new Thickness(0, 0, 0, 4)
             });
-            dashboard.Children.Add(panel);
-            PageContent.Content = dashboard;
-            StatusText.Text = $"Last refreshed {DateTime.Now:T}.";
+            shell.Children.Add(new TextBlock
+            {
+                Text = string.Join(" · ", _api.CurrentUserRoles),
+                FontSize = 13, Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#64748B")!,
+                Margin = new Thickness(0, 0, 0, 18)
+            });
+
+            var metrics = new List<(string Label, string Value, string Color)>();
+            if (admin || manager || purchaser || viewer) metrics.Add(("Stock value", data.StockValue.ToString("N2", CultureInfo.InvariantCulture), "#2563EB"));
+            if (admin || manager || purchaser || operatorRole || viewer) metrics.Add(("Low-stock products", data.LowStockProducts.ToString("N0"), "#DC5A45"));
+            if (admin || manager || purchaser) metrics.Add(("Open purchase orders", data.OpenPurchaseOrders.ToString("N0"), "#0D9488"));
+            if (admin || manager || purchaser) metrics.Add(("Pending approvals", data.PendingApprovals.ToString("N0"), "#7C3AED"));
+            if (admin || manager || operatorRole || sales || viewer) metrics.Add(("Open sales orders", data.OpenSalesOrders.ToString("N0"), "#D97706"));
+            if (admin || manager || operatorRole || sales || viewer) metrics.Add(("Units reserved", data.UnitsReserved.ToString("N2", CultureInfo.InvariantCulture), "#475569"));
+
+            var cards = new UniformGrid { Columns = 3, Margin = new Thickness(0, 0, 0, 18) };
+            foreach (var metric in metrics)
+            {
+                var body = new StackPanel();
+                body.Children.Add(new TextBlock { Text = metric.Label.ToUpperInvariant(), FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#64748B")!, TextWrapping = TextWrapping.Wrap });
+                body.Children.Add(new TextBlock { Text = metric.Value, FontSize = 25, FontWeight = FontWeights.Bold, Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(metric.Color)!, Margin = new Thickness(0, 8, 0, 0) });
+                cards.Children.Add(new Border { Background = System.Windows.Media.Brushes.White, BorderBrush = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#E2E8F0")!, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), Padding = new Thickness(16), Margin = new Thickness(0, 0, 10, 10), Child = body });
+            }
+            shell.Children.Add(cards);
+
+            var contentGrid = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, 0, 18) };
+            var workload = new StackPanel();
+            workload.Children.Add(new TextBlock { Text = "CURRENT WORKLOAD", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#142B45")!, Margin = new Thickness(0, 0, 0, 12) });
+            var bars = new List<(string Name, double Value, string Color)>();
+            if (admin || manager || purchaser) bars.Add(("Open purchase orders", data.OpenPurchaseOrders, "#0D9488"));
+            if (admin || manager || purchaser) bars.Add(("Pending approvals", data.PendingApprovals, "#7C3AED"));
+            if (admin || manager || operatorRole || sales || viewer) bars.Add(("Open sales orders", data.OpenSalesOrders, "#2563EB"));
+            if (admin || manager || purchaser || operatorRole || viewer) bars.Add(("Low-stock products", data.LowStockProducts, "#DC5A45"));
+            var max = Math.Max(1, bars.Select(b => b.Value).DefaultIfEmpty(1).Max());
+            foreach (var bar in bars)
+            {
+                workload.Children.Add(new TextBlock { Text = bar.Name + "   " + bar.Value.ToString("N0"), FontSize = 12, Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#334155")!, Margin = new Thickness(0, 6, 0, 4) });
+                workload.Children.Add(new ProgressBar { Minimum = 0, Maximum = max, Value = bar.Value, Height = 9, Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(bar.Color)!, Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#E8EEF5")!, BorderThickness = new Thickness(0) });
+            }
+            contentGrid.Children.Add(new Border { Background = System.Windows.Media.Brushes.White, BorderBrush = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#E2E8F0")!, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), Padding = new Thickness(18), Margin = new Thickness(0, 0, 10, 0), Child = workload });
+
+            var actions = new StackPanel();
+            actions.Children.Add(new TextBlock { Text = "QUICK ACTIONS", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#142B45")!, Margin = new Thickness(0, 0, 0, 12) });
+            void AddAction(string label, string page, bool allowed)
+            {
+                if (!allowed) return;
+                var button = new Button { Content = label, Tag = page, HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 10, 12, 10), Margin = new Thickness(0, 0, 0, 8), Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#F1F6FC")!, Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#1D4268")!, BorderBrush = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#D9E5F2")! };
+                button.Click += async (_, _) =>
+                {
+                    PageTitle.Text = page;
+                    await LoadWorkspaceAsync(page);
+                };
+                actions.Children.Add(button);
+            }
+            AddAction("View inventory", "Inventory", true);
+            AddAction("Sales orders", "Sales orders", admin || manager || operatorRole || sales);
+            AddAction("Purchase orders", "Purchasing", admin || manager || purchaser);
+            AddAction("Transfers & warehouse work", "Stock transfers", admin || manager || operatorRole);
+            AddAction("Reports & exports", "Reports", admin || manager || purchaser || viewer);
+            AddAction("Users & roles", "Users", admin);
+            contentGrid.Children.Add(new Border { Background = System.Windows.Media.Brushes.White, BorderBrush = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#E2E8F0")!, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), Padding = new Thickness(18), Margin = new Thickness(10, 0, 0, 0), Child = actions });
+            shell.Children.Add(contentGrid);
+
+            shell.Children.Add(new TextBlock { Text = "Operational data", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#142B45")!, Margin = new Thickness(0, 0, 0, 8) });
+            shell.Children.Add(new TextBlock { Text = "Metrics and workload bars reflect the current API response. Use the workspace pages for editable records, approvals, receiving, transfers and user administration.", FontSize = 12, Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#64748B")!, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) });
+
+            PageContent.Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = shell };
+            StatusText.Text = "Updated " + DateTime.Now.ToString("HH:mm:ss") + " · " + string.Join(", ", _api.CurrentUserRoles);
         }
-        catch (Exception ex) { StatusText.Text = ex.Message; }
+        catch (Exception ex)
+        {
+            PageContent.Content = new Border { Background = System.Windows.Media.Brushes.White, CornerRadius = new CornerRadius(10), Padding = new Thickness(20), Child = new TextBlock { Text = "Dashboard could not be loaded. " + ex.Message, Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#B42318")!, TextWrapping = TextWrapping.Wrap } };
+        }
     }
 
     private async Task LoadWorkspaceAsync(string page)
