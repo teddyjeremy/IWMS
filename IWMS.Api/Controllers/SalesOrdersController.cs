@@ -131,7 +131,7 @@ public sealed class SalesOrdersController : ControllerBase
 
         var order = new SalesOrder
         {
-            OrderNumber = $"SO-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid():N}"[..20],
+            OrderNumber = $"SO-{Guid.NewGuid():N},
             Status = SalesOrderStatus.Draft,
             CustomerId = customer.Id,
             CreatedByUserId = User.GetUserId(),
