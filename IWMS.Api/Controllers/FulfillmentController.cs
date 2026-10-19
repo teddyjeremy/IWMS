@@ -85,7 +85,7 @@ public sealed class FulfillmentController : ControllerBase
             .Include(o => o.Lines)
             .SingleOrDefaultAsync(o => o.Id == orderId, ct);
         if (order is null) return NotFound();
-        if (order.Status is not (SalesOrderStatus.Confirmed or SalesOrderStatus.Backordered or SalesOrderStatus.Reserved))
+        if (order.Status is not (SalesOrderStatus.Confirmed or SalesOrderStatus.Backordered or SalesOrderStatus.Reserved or SalesOrderStatus.PartiallyDispatched))
             throw new DomainException("Only confirmed or backordered orders can be reserved.");
 
         var shortages = new List<object>();
@@ -126,7 +126,10 @@ public sealed class FulfillmentController : ControllerBase
                 shortages.Add(new { lineId = line.Id, productId = line.ProductId, quantityShort = remaining });
         }
 
-        order.Status = shortages.Count > 0 ? SalesOrderStatus.Backordered : SalesOrderStatus.Reserved;
+        var alreadyDispatched = order.Lines.Any(l => l.QuantityDispatched > 0);
+        order.Status = shortages.Count > 0
+            ? SalesOrderStatus.Backordered
+            : alreadyDispatched ? SalesOrderStatus.PartiallyDispatched : SalesOrderStatus.Reserved;
         order.UpdatedAtUtc = DateTime.UtcNow;
         _audit.Record("SalesOrder.StockReserved", nameof(SalesOrder), order.Id,
             User.GetUserId(), details: $"Shortages: {shortages.Count}");
