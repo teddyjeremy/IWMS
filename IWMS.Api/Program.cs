@@ -8,6 +8,7 @@ using IWMS.Application.Audit;
 using IWMS.Application.Ledger;
 using IWMS.Application.Receiving;
 using IWMS.Domain.Entities;
+using IWMS.Domain.Common;
 using IWMS.Infrastructure;
 using IWMS.Infrastructure.Seeding;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -99,6 +100,59 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 var app = builder.Build();
+
+// Optional one-time production administrator provisioning. Configure these values as
+// host secrets, never in source control. Existing accounts are never overwritten.
+var bootstrapAdminEmail = builder.Configuration["BootstrapAdmin:Email"];
+var bootstrapAdminPassword = builder.Configuration["BootstrapAdmin:Password"];
+if (!string.IsNullOrWhiteSpace(bootstrapAdminEmail) ||
+    !string.IsNullOrWhiteSpace(bootstrapAdminPassword))
+{
+    if (string.IsNullOrWhiteSpace(bootstrapAdminEmail) ||
+        string.IsNullOrWhiteSpace(bootstrapAdminPassword))
+        throw new InvalidOperationException("Both BootstrapAdmin:Email and BootstrapAdmin:Password must be configured together.");
+
+    if (bootstrapAdminPassword.Length < 10 ||
+        !bootstrapAdminPassword.Any(char.IsLetter) ||
+        !bootstrapAdminPassword.Any(char.IsDigit))
+        throw new InvalidOperationException("BootstrapAdmin:Password must be at least 10 characters and contain letters and digits.");
+
+    using var bootstrapScope = app.Services.CreateScope();
+    var bootstrapDb = bootstrapScope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var normalizedBootstrapEmail = bootstrapAdminEmail.Trim().ToLowerInvariant();
+    var existingBootstrapUser = await bootstrapDb.Users
+        .Include(u => u.Roles)
+        .SingleOrDefaultAsync(u => u.Email == normalizedBootstrapEmail);
+
+    if (existingBootstrapUser is null)
+    {
+        var administratorRole = await bootstrapDb.Roles
+            .SingleOrDefaultAsync(r => r.Name == RoleNames.Administrator)
+            ?? throw new InvalidOperationException("The Administrator role is missing. Apply migrations and initialize IWMS roles before bootstrapping an administrator.");
+
+        var name = builder.Configuration["BootstrapAdmin:Name"]?.Trim();
+        var nameParts = (name ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var firstName = nameParts.FirstOrDefault() ?? "IWMS";
+        var lastName = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)) : "Administrator";
+        var newAdmin = new User
+        {
+            FirstName = firstName,
+            LastName = lastName,
+            Email = normalizedBootstrapEmail,
+            Roles = { administratorRole }
+        };
+        var passwordHasher = bootstrapScope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
+        newAdmin.PasswordHash = passwordHasher.HashPassword(newAdmin, bootstrapAdminPassword);
+        bootstrapDb.Users.Add(newAdmin);
+        await bootstrapDb.SaveChangesAsync();
+        app.Logger.LogInformation("Initial IWMS administrator provisioned for {AdminEmail}.", normalizedBootstrapEmail);
+    }
+    else
+    {
+        app.Logger.LogInformation("Bootstrap administrator already exists; no account changes were made.");
+    }
+}
+
 
 app.UseExceptionHandler();
 
