@@ -165,6 +165,8 @@ public sealed class FulfillmentController : ControllerBase
         {
             var reservations = await _db.Reservations
                 .Where(r => r.SalesOrderLineId == line.Id && r.ReleasedAtUtc == null)
+                .GroupBy(r => r.StorageLocationId)
+                .Select(g => new { StorageLocationId = g.Key, Quantity = g.Sum(r => r.Quantity) })
                 .ToListAsync(ct);
             foreach (var reservation in reservations)
             {
