@@ -64,7 +64,7 @@ Work in small, reviewable sections. Keep each commit focused, run the build and 
 1. Validate the existing project references, migrations, receiving, stock ledger and purchasing flows with a successful CI run.
 2. Exercise fulfillment end to end: reservations, partial stock, backorders, pick lists, dispatch, and cancellation under concurrent requests.
 3. Validate dashboard totals, trend data and CSV/PDF exports against seeded database scenarios.
-4. Complete document-based transfers, stock counts and return processing; short-close orders are implemented and need workflow verification.
+4. Complete document-based transfers and return processing; stock-count sessions now support snapshot, physical-count entry, variance reasons and transactional adjustment posting.
 5. Finish desktop editing and administrative screens, improve validation/error presentation, and test the packaged app against a configured API.
 6. Expand automated tests and add release/versioning and deployment guidance.
 
@@ -85,7 +85,7 @@ All endpoints below require a valid bearer token unless the authentication endpo
 - `POST /api/fulfillment/shipments/{id}/dispatch` — post dispatch movements and update order fulfillment.
 - `POST /api/fulfillment/sales-orders/{id}/cancel` and `POST /api/fulfillment/shipments/{id}/cancel` — cancel eligible orders/shipments and release order reservations.
 - `POST /api/fulfillment/sales-orders/{id}/close-short` — close an eligible backordered/partially fulfilled order, release remaining reservations and cancel open pick lists.
-- `GET /api/reports/dashboard` — stock value, low-stock products, open purchase orders, pending approvals and order totals.
+- `GET /api/stock-counts` and `GET /api/stock-counts/{id}` — inspect stock-count sessions and line-level system/count quantities.\n- `POST /api/stock-counts` — start a count for a warehouse.\n- `PUT /api/stock-counts/{id}/lines` — record physical quantities and variance reasons; the session moves to review when every line is counted.\n- `POST /api/stock-counts/{id}/post` — post stock adjustments for variances; posting is stopped if inventory changed after the count snapshot.\n- `GET /api/reports/dashboard` — stock value, low-stock products, open purchase orders, pending approvals and order totals.
 - `GET /api/reports/inventory-trend?days=30` — daily movement totals for the requested period.
 - `GET /api/reports/inventory.csv` — download an inventory CSV.
 - `GET /api/reports/inventory.pdf` — download a printable inventory PDF.
