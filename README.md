@@ -101,7 +101,7 @@ The desktop client is a WPF app in `IWMS.Desktop`. It connects to the API URL en
 
 Fulfillment operations that modify stock use serializable database transactions. The latest GitHub Actions run passed the solution build and tests and successfully published both Windows artifacts. This verifies compilation and packaging, not live-database behaviour; test workflows against a non-production database before operational use. The API and desktop client are published as separate artifacts; the API artifact is not a desktop installer.
 
-The desktop transfer and return forms are intentionally simple operator dialogs and currently create one line per document; the API accepts multi-line documents. The desktop transfer receipt action accepts the full dispatched quantity; use the API to record partial receipt/discrepancy quantities. Quarantine and scrap returns are recorded as dispositions but do not increase available inventory; quarantine stock is not separately balance-tracked yet.
+The desktop transfer and return forms are intentionally simple operator dialogs and currently create one line per document; the API accepts multi-line documents. The desktop transfer receipt form supports partial quantities and requires a note for discrepancies. Quarantine and scrap returns are recorded as dispositions but do not increase available inventory; quarantine stock is not separately balance-tracked yet.
 
 ## Security
 
