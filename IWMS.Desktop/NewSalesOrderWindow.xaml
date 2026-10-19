@@ -1,22 +1,42 @@
 <Window x:Class="IWMS.Desktop.NewSalesOrderWindow"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- Title="New sales order" Height="600" Width="560" WindowStartupLocation="CenterOwner">
+ Title="Sales order" Height="720" Width="820" MinHeight="620" MinWidth="720" WindowStartupLocation="CenterOwner">
  <Grid Margin="24">
   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-  <TextBlock Text="Create sales order" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,18"/>
-  <StackPanel Grid.Row="1">
-   <TextBlock Text="Customer *"/><ComboBox x:Name="CustomerBox" DisplayMemberPath="Label" SelectedValuePath="Id" Padding="8" Margin="0,4,0,12"/>
-   <TextBlock Text="Product *"/><ComboBox x:Name="ProductBox" DisplayMemberPath="Label" SelectedValuePath="Id" Padding="8" Margin="0,4,0,12"/>
-   <TextBlock Text="Quantity *"/><TextBox x:Name="QuantityBox" Text="1"/>
-   <TextBlock Text="Unit price *"/><TextBox x:Name="UnitPriceBox" Text="0"/>
-   <TextBlock Text="Required date (UTC, optional)"/><DatePicker x:Name="RequiredDatePicker" Margin="0,4,0,12"/>
-   <TextBlock Text="Notes"/><TextBox x:Name="NotesBox" AcceptsReturn="True" Height="55" TextWrapping="Wrap"/>
-   <TextBlock x:Name="ErrorText" Foreground="DarkRed" TextWrapping="Wrap" Margin="0,8,0,0"/>
-  </StackPanel>
-  <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
-   <Button Content="Cancel" Click="Cancel_Click"/>
-   <Button Content="Create order" Click="Create_Click" IsDefault="True"/>
+  <TextBlock x:Name="HeaderText" Text="Create sales order" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,18"/>
+  <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+   <StackPanel>
+    <TextBlock Text="Customer *"/><ComboBox x:Name="CustomerBox" DisplayMemberPath="Label" SelectedValuePath="Id" Padding="8" Margin="0,4,0,12"/>
+    <TextBlock Text="Order lines" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,8"/>
+    <Grid Margin="0,0,0,8">
+     <Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+     <StackPanel Grid.Column="0" Margin="0,0,8,0"><TextBlock Text="Product *"/><ComboBox x:Name="ProductBox" DisplayMemberPath="Label" SelectedValuePath="Id" Padding="7" Margin="0,4,0,0"/></StackPanel>
+     <StackPanel Grid.Column="1" Margin="0,0,8,0"><TextBlock Text="Quantity *"/><TextBox x:Name="QuantityBox" Text="1" Padding="7" Margin="0,4,0,0"/></StackPanel>
+     <StackPanel Grid.Column="2" Margin="0,0,8,0"><TextBlock Text="Unit price *"/><TextBox x:Name="UnitPriceBox" Text="0" Padding="7" Margin="0,4,0,0"/></StackPanel>
+     <Button x:Name="AddLineButton" Grid.Column="3" Content="Add line" VerticalAlignment="Bottom" Padding="12,7" Click="AddLine_Click"/>
+    </Grid>
+    <DataGrid x:Name="LinesGrid" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single" Height="190" Margin="0,0,0,8">
+     <DataGrid.Columns>
+      <DataGridTextColumn Header="Product" Binding="{Binding ProductLabel}" Width="*"/>
+      <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity}" Width="100"/>
+      <DataGridTextColumn Header="Unit price" Binding="{Binding UnitPrice}" Width="120"/>
+      <DataGridTextColumn Header="Line total" Binding="{Binding LineTotal}" Width="120"/>
+     </DataGrid.Columns>
+    </DataGrid>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,16">
+     <TextBlock Text="Order total: " FontWeight="SemiBold" VerticalAlignment="Center"/>
+     <TextBlock x:Name="TotalText" Text="0.00" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0"/>
+     <Button Content="Remove selected line" Padding="10,5" Click="RemoveLine_Click"/>
+    </StackPanel>
+    <TextBlock Text="Required date (UTC, optional)"/><DatePicker x:Name="RequiredDatePicker" Margin="0,4,0,12"/>
+    <TextBlock Text="Notes (optional, max 2000 characters)"/><TextBox x:Name="NotesBox" AcceptsReturn="True" Height="65" TextWrapping="Wrap" MaxLength="2000"/>
+    <TextBlock x:Name="ErrorText" Foreground="DarkRed" TextWrapping="Wrap" Margin="0,8,0,0"/>
+   </StackPanel>
+  </ScrollViewer>
+  <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+   <Button Content="Cancel" Padding="14,7" Margin="0,0,8,0" Click="Cancel_Click"/>
+   <Button x:Name="SaveButton" Content="Create order" Padding="14,7" IsDefault="True" Click="Create_Click"/>
   </StackPanel>
  </Grid>
 </Window>
