@@ -52,7 +52,7 @@ Database migrations are applied automatically by the API only in the Development
 
 GitHub Actions runs on pushes and pull requests targeting `master` or `main`. It restores, builds and tests the solution on Windows. After those checks pass, it publishes both the API and WPF desktop client for Windows x64 as self-contained deployments and uploads separate workflow artifacts.
 
-Find the result under **Actions → Build and test → workflow run → Artifacts**. This artifact is the API deployment output, not a complete Windows desktop UI installer. A self-contained publish still needs valid configuration and a reachable PostgreSQL database to run.
+Find both artifacts under **Actions → Build and test → workflow run → Artifacts**: `IWMS-Api-win-x64` and `IWMS-Desktop-win-x64`. The API needs valid JWT/database configuration and a reachable PostgreSQL database; the desktop client needs the API running and reachable.
 
 Architecture and entity relationship diagrams are in [`docs/architecture.md`](docs/architecture.md).
 
