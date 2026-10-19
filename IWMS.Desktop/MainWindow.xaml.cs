@@ -515,8 +515,24 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            PageContent.Content = new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap };
-            StatusText.Text = "Could not load data.";
+            PageContent.Content = new Border
+            {
+                Background = System.Windows.Media.Brushes.White,
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(238, 190, 190)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(18),
+                Child = new StackPanel
+                {
+                    Children =
+                    {
+                        new TextBlock { Text = "We couldn’t load this workspace", FontSize = 17, FontWeight = FontWeights.SemiBold, Foreground = System.Windows.Media.Brushes.DarkRed, Margin = new Thickness(0, 0, 0, 8) },
+                        new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap, Foreground = System.Windows.Media.Brushes.DimGray },
+                        new TextBlock { Text = "Check your connection and account permissions, then select the workspace again to retry.", TextWrapping = TextWrapping.Wrap, Foreground = System.Windows.Media.Brushes.Gray, Margin = new Thickness(0, 10, 0, 0) }
+                    }
+                }
+            };
+            StatusText.Text = "Workspace failed to load. You can retry without restarting IWMS.";
         }
     }
 
