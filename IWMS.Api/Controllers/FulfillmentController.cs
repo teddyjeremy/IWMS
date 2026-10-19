@@ -180,6 +180,15 @@ public sealed class FulfillmentController : ControllerBase
 
         shipment.Status = shipment.Lines.All(l => l.QuantityPicked == l.QuantityToPick)
             ? ShipmentStatus.Picked : ShipmentStatus.PickListCreated;
+        foreach (var salesLineId in shipment.Lines.Select(l => l.SalesOrderLineId).Distinct())
+        {
+            var salesLine = shipment.Lines.First(l => l.SalesOrderLineId == salesLineId).SalesOrderLine;
+            salesLine.QuantityPicked = await _db.ShipmentLines
+                .Where(sl => sl.SalesOrderLineId == salesLineId &&
+                             sl.Shipment.Status != ShipmentStatus.Dispatched &&
+                             sl.Shipment.Status != ShipmentStatus.Cancelled)
+                .SumAsync(sl => (decimal?)sl.QuantityPicked, ct) ?? 0m;
+        }
         shipment.UpdatedAtUtc = DateTime.UtcNow;
         _audit.Record("Shipment.Picked", nameof(Shipment), shipment.Id,
             User.GetUserId(), details: shipment.ShipmentNumber);
@@ -233,6 +242,8 @@ public sealed class FulfillmentController : ControllerBase
             }
 
             balance.Reserved -= line.QuantityPicked;
+            line.SalesOrderLine.QuantityReserved = Math.Max(
+                0, line.SalesOrderLine.QuantityReserved - line.QuantityPicked);
             var movement = balance.Post(
                 MovementType.Dispatch,
                 line.QuantityPicked,
@@ -243,8 +254,6 @@ public sealed class FulfillmentController : ControllerBase
                 sourceLineId: line.Id);
             _db.InventoryMovements.Add(movement);
             line.SalesOrderLine.QuantityDispatched += line.QuantityPicked;
-            line.SalesOrderLine.QuantityPicked = Math.Max(0,
-                line.SalesOrderLine.QuantityPicked - line.QuantityPicked);
         }
 
         shipment.Status = ShipmentStatus.Dispatched;
