@@ -156,7 +156,7 @@ public sealed class FulfillmentController : ControllerBase
         var shipment = new Shipment
         {
             SalesOrderId = order.Id,
-            ShipmentNumber = $"SH-{Guid.NewGuid():N}"[..15],
+            ShipmentNumber = $"SH-{Guid.NewGuid():N},
             Status = ShipmentStatus.PickListCreated,
             Notes = request.Notes?.Trim() ?? string.Empty
         };
