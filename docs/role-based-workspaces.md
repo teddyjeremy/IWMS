@@ -21,7 +21,7 @@ The exact permissions for every API endpoint must continue to be enforced by ASP
 - [x] Identify the signed-in user's role in the sidebar.
 - [x] Show role-appropriate navigation and dashboard KPIs.
 - [x] Add an existing-customer editor and deactivation action for roles allowed by the API.
-- [ ] Add editable product detail views with category, unit, reorder threshold, cost, and concurrency validation.
+- [x] Add editable product detail views with category, unit, reorder threshold, cost, and optimistic concurrency version.
 - [ ] Add safe sales-order detail editing only for eligible draft orders, with API-side state validation.
 - [ ] Replace single-line transfer and return dialogs with multi-line document editors.
 - [ ] Add clear validation summaries, empty states, loading states, and recoverable error messages.
