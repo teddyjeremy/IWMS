@@ -16,7 +16,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        LoginApiUrlBox.Text = Environment.GetEnvironmentVariable("IWMS_API_BASE_URL") ?? _api.BaseUrl;
+        _api.SetBaseUrl(Environment.GetEnvironmentVariable("IWMS_API_BASE_URL") ?? _api.BaseUrl);
         ShellRoot.Visibility = Visibility.Collapsed;
         LoginRoot.Visibility = Visibility.Visible;
         ShowDashboard();
@@ -30,7 +30,6 @@ public partial class MainWindow : Window
         LoginButton.Content = "Signing in...";
         try
         {
-            _api.SetBaseUrl(LoginApiUrlBox.Text.Trim());
             await _api.SignInAsync(LoginEmailBox.Text.Trim(), LoginPasswordBox.Password);
             LoginPasswordBox.Clear();
             ConnectionLabel.Text = $"Signed in as {_api.CurrentUserName}";
