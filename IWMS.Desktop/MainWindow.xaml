@@ -64,7 +64,7 @@
             <Border Grid.Column="0" Background="#122F43">
                 <StackPanel VerticalAlignment="Center" Margin="56">
                     <Border Width="64" Height="64" Background="#2B6D8A" CornerRadius="14" HorizontalAlignment="Left" Margin="0,0,0,28">
-                        <TextBlock Text="W" Foreground="White" FontSize="34" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Image Source="Assets/IWMS.ico" Width="48" Height="48" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <TextBlock Text="IWMS" Foreground="White" FontSize="38" FontWeight="Bold"/>
                     <TextBlock Text="INVENTORY &amp; WAREHOUSE MANAGEMENT" Foreground="#B8D0DE" FontSize="12" FontWeight="SemiBold" Margin="0,8,0,0"/>
