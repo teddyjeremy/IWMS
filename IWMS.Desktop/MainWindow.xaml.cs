@@ -34,7 +34,7 @@ public partial class MainWindow : Window
             await _api.SignInAsync(LoginEmailBox.Text.Trim(), LoginPasswordBox.Password);
             LoginPasswordBox.Clear();
             ConnectionLabel.Text = $"Signed in as {_api.CurrentUserName}";
-            UsersNavButton.Visibility = _api.IsInRole("Administrator") ? Visibility.Visible : Visibility.Collapsed;
+            ApplyRoleBasedWorkspace();
             LoginRoot.Visibility = Visibility.Collapsed;
             ShellRoot.Visibility = Visibility.Visible;
             StatusText.Text = "Securely connected to the IWMS API.";
@@ -56,6 +56,10 @@ public partial class MainWindow : Window
     {
         _api.SignOut();
         UsersNavButton.Visibility = Visibility.Collapsed;
+        SetNavigationVisibility(false, DashboardNavButton, CustomersNavButton, SalesOrdersNavButton,
+            FulfillmentNavButton, TransfersNavButton, CountsNavButton, ReturnsNavButton,
+            InventoryNavButton, PurchasingNavButton, ReportsNavButton);
+        RoleLabel.Text = "Workspace";
         LoginPasswordBox.Clear();
         LoginErrorText.Text = string.Empty;
         ShellRoot.Visibility = Visibility.Collapsed;
@@ -66,7 +70,8 @@ public partial class MainWindow : Window
 
     private async void Navigate_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: string page }) return;
+        if (sender is not Button button || button.Tag is not string page ||
+            button.Visibility != Visibility.Visible) return;
         PageTitle.Text = page;
         if (page == "Fulfillment") _showShipments = false;
         PageSubtitle.Text = page switch
@@ -93,6 +98,43 @@ public partial class MainWindow : Window
         await LoadWorkspaceAsync(page);
     }
 
+
+    private void ApplyRoleBasedWorkspace()
+    {
+        var admin = _api.IsInRole("Administrator");
+        var manager = _api.IsInRole("Warehouse Manager");
+        var purchaser = _api.IsInRole("Purchaser");
+        var operatorRole = _api.IsInRole("Warehouse Operator");
+        var sales = _api.IsInRole("Sales Officer");
+        var viewer = _api.IsInRole("Viewer") || _api.IsInRole("Auditor");
+
+        DashboardNavButton.Visibility = Visibility.Visible;
+        CustomersNavButton.Visibility = admin || sales ? Visibility.Visible : Visibility.Collapsed;
+        SalesOrdersNavButton.Visibility = admin || sales || manager ? Visibility.Visible : Visibility.Collapsed;
+        FulfillmentNavButton.Visibility = admin || manager || operatorRole || sales ? Visibility.Visible : Visibility.Collapsed;
+        TransfersNavButton.Visibility = admin || manager || operatorRole ? Visibility.Visible : Visibility.Collapsed;
+        CountsNavButton.Visibility = admin || manager || operatorRole ? Visibility.Visible : Visibility.Collapsed;
+        ReturnsNavButton.Visibility = admin || manager || operatorRole ? Visibility.Visible : Visibility.Collapsed;
+        InventoryNavButton.Visibility = Visibility.Visible;
+        PurchasingNavButton.Visibility = admin || manager || purchaser ? Visibility.Visible : Visibility.Collapsed;
+        ReportsNavButton.Visibility = admin || manager || purchaser || viewer ? Visibility.Visible : Visibility.Collapsed;
+        UsersNavButton.Visibility = admin ? Visibility.Visible : Visibility.Collapsed;
+
+        RoleLabel.Text = admin ? "Administrator workspace"
+            : manager ? "Warehouse manager workspace"
+            : purchaser ? "Purchasing workspace"
+            : operatorRole ? "Warehouse operations workspace"
+            : sales ? "Sales workspace"
+            : viewer ? "Read-only / audit workspace"
+            : "Standard workspace";
+    }
+
+    private static void SetNavigationVisibility(bool visible, params Button[] buttons)
+    {
+        foreach (var button in buttons)
+            button.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void ShowDashboard()
     {
         PageContent.Content = new TextBlock
@@ -116,14 +158,53 @@ public partial class MainWindow : Window
         try
         {
             var data = await _api.GetAsync<DashboardDto>("api/reports/dashboard");
-            var panel = new UniformGrid { Columns = 3, Rows = 2, Margin = new Thickness(0, 4, 0, 0) };
-            AddMetric(panel, "Stock value", data.StockValue.ToString("N2", CultureInfo.InvariantCulture));
-            AddMetric(panel, "Low-stock products", data.LowStockProducts.ToString("N0"));
-            AddMetric(panel, "Open purchase orders", data.OpenPurchaseOrders.ToString("N0"));
-            AddMetric(panel, "Pending approvals", data.PendingApprovals.ToString("N0"));
-            AddMetric(panel, "Open sales orders", data.OpenSalesOrders.ToString("N0"));
-            AddMetric(panel, "Units reserved", data.UnitsReserved.ToString("N2", CultureInfo.InvariantCulture));
-            PageContent.Content = panel;
+            var isAdmin = _api.IsInRole("Administrator");
+            var isManager = _api.IsInRole("Warehouse Manager");
+            var isPurchaser = _api.IsInRole("Purchaser");
+            var isOperator = _api.IsInRole("Warehouse Operator");
+            var isSales = _api.IsInRole("Sales Officer");
+            var isAuditor = _api.IsInRole("Viewer") || _api.IsInRole("Auditor");
+            var metrics = new List<(string Label, string Value)>();
+
+            if (isAdmin || isManager || isPurchaser || isAuditor)
+                metrics.Add(("Stock value", data.StockValue.ToString("N2", CultureInfo.InvariantCulture)));
+            if (isAdmin || isManager || isPurchaser || isOperator || isAuditor)
+                metrics.Add(("Low-stock products", data.LowStockProducts.ToString("N0")));
+            if (isAdmin || isManager || isPurchaser)
+                metrics.Add(("Open purchase orders", data.OpenPurchaseOrders.ToString("N0")));
+            if (isAdmin || isManager || isPurchaser)
+                metrics.Add(("Pending approvals", data.PendingApprovals.ToString("N0")));
+            if (isAdmin || isManager || isOperator || isSales || isAuditor)
+                metrics.Add(("Open sales orders", data.OpenSalesOrders.ToString("N0")));
+            if (isAdmin || isManager || isOperator || isSales || isAuditor)
+                metrics.Add(("Units reserved", data.UnitsReserved.ToString("N2", CultureInfo.InvariantCulture)));
+
+            if (metrics.Count == 0)
+            {
+                metrics.Add(("Low-stock products", data.LowStockProducts.ToString("N0")));
+                metrics.Add(("Open sales orders", data.OpenSalesOrders.ToString("N0")));
+            }
+
+            var panel = new UniformGrid
+            {
+                Columns = 3,
+                Rows = (int)Math.Ceiling(metrics.Count / 3d),
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            foreach (var metric in metrics)
+                AddMetric(panel, metric.Label, metric.Value);
+
+            var dashboard = new StackPanel();
+            dashboard.Children.Add(new TextBlock
+            {
+                Text = $"Welcome, {_api.CurrentUserName}",
+                FontSize = 20,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#152433")!,
+                Margin = new Thickness(0, 0, 0, 16)
+            });
+            dashboard.Children.Add(panel);
+            PageContent.Content = dashboard;
             StatusText.Text = $"Last refreshed {DateTime.Now:T}.";
         }
         catch (Exception ex) { StatusText.Text = ex.Message; }
