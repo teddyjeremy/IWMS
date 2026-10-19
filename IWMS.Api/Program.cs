@@ -149,6 +149,10 @@ if (!string.IsNullOrWhiteSpace(bootstrapAdminEmail) ||
     }
     else
     {
+        if (!existingBootstrapUser.IsActive ||
+            !existingBootstrapUser.Roles.Any(r => r.Name == RoleNames.Administrator))
+            throw new InvalidOperationException("The configured bootstrap email already belongs to an account that is not an active administrator. No account changes were made; use a different email or promote the account through an existing administrator.");
+
         app.Logger.LogInformation("Bootstrap administrator already exists; no account changes were made.");
     }
 }
