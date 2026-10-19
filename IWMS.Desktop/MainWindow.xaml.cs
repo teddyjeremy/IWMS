@@ -16,16 +16,50 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        LoginApiUrlBox.Text = _api.BaseUrl;
+        ShellRoot.Visibility = Visibility.Collapsed;
+        LoginRoot.Visibility = Visibility.Visible;
         ShowDashboard();
+        Loaded += (_, _) => LoginEmailBox.Focus();
     }
 
     private async void SignIn_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new SignInWindow(_api) { Owner = this };
-        if (dialog.ShowDialog() != true) return;
-        ConnectionLabel.Text = $"Connected as {_api.CurrentUserName}";
-        StatusText.Text = "Connected to the IWMS API.";
-        await LoadDashboardAsync();
+        LoginErrorText.Text = string.Empty;
+        LoginButton.IsEnabled = false;
+        LoginButton.Content = "Signing in...";
+        try
+        {
+            _api.SetBaseUrl(LoginApiUrlBox.Text.Trim());
+            await _api.SignInAsync(LoginEmailBox.Text.Trim(), LoginPasswordBox.Password);
+            LoginPasswordBox.Clear();
+            ConnectionLabel.Text = $"Signed in as {_api.CurrentUserName}";
+            LoginRoot.Visibility = Visibility.Collapsed;
+            ShellRoot.Visibility = Visibility.Visible;
+            StatusText.Text = "Securely connected to the IWMS API.";
+            await LoadDashboardAsync();
+        }
+        catch (Exception ex)
+        {
+            _api.SignOut();
+            LoginErrorText.Text = ex.Message;
+        }
+        finally
+        {
+            LoginButton.IsEnabled = true;
+            LoginButton.Content = "Sign in securely";
+        }
+    }
+
+    private void SignOut_Click(object sender, RoutedEventArgs e)
+    {
+        _api.SignOut();
+        LoginPasswordBox.Clear();
+        LoginErrorText.Text = string.Empty;
+        ShellRoot.Visibility = Visibility.Collapsed;
+        LoginRoot.Visibility = Visibility.Visible;
+        StatusText.Text = "Sign in to connect to the IWMS API.";
+        LoginEmailBox.Focus();
     }
 
     private async void Navigate_Click(object sender, RoutedEventArgs e)
