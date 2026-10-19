@@ -28,7 +28,7 @@ public sealed class FulfillmentController : ControllerBase
     [Authorize(Policy = Policies.PostIssue)]
     public async Task<ActionResult> Reserve(Guid orderId, CancellationToken ct)
     {
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         var order = await _db.SalesOrders
             .Include(o => o.Lines)
             .SingleOrDefaultAsync(o => o.Id == orderId, ct);
@@ -91,7 +91,7 @@ public sealed class FulfillmentController : ControllerBase
         if (request.Notes?.Length > 1000)
             throw new DomainException("Notes must be 1000 characters or fewer.");
 
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         var order = await _db.SalesOrders.Include(o => o.Lines)
             .SingleOrDefaultAsync(o => o.Id == orderId, ct);
         if (order is null) return NotFound();
@@ -160,7 +160,7 @@ public sealed class FulfillmentController : ControllerBase
         if (request.Lines.Any(l => l.QuantityPicked < 0))
             throw new DomainException("Picked quantities cannot be negative.");
 
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         var shipment = await _db.Shipments.Include(s => s.Lines)
             .ThenInclude(l => l.SalesOrderLine)
             .Include(s => s.SalesOrder)
@@ -202,7 +202,7 @@ public sealed class FulfillmentController : ControllerBase
     [Authorize(Policy = Policies.PostIssue)]
     public async Task<ActionResult> Dispatch(Guid shipmentId, CancellationToken ct)
     {
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         var shipment = await _db.Shipments
             .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
             .Include(s => s.SalesOrder).ThenInclude(o => o.Lines)
@@ -284,7 +284,7 @@ public sealed class FulfillmentController : ControllerBase
     [Authorize(Policy = Policies.PostIssue)]
     public async Task<IActionResult> CancelOrder(Guid orderId, CancellationToken ct)
     {
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         var order = await _db.SalesOrders.Include(o => o.Lines)
             .SingleOrDefaultAsync(o => o.Id == orderId, ct);
         if (order is null) return NotFound();
@@ -336,7 +336,7 @@ public sealed class FulfillmentController : ControllerBase
     [Authorize(Policy = Policies.PostIssue)]
     public async Task<IActionResult> CancelShipment(Guid shipmentId, CancellationToken ct)
     {
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         var shipment = await _db.Shipments.Include(s => s.Lines)
             .ThenInclude(l => l.SalesOrderLine)
             .Include(s => s.SalesOrder)
