@@ -10,6 +10,6 @@
     <ApplicationIcon>Assets\IWMS.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="Assets\IWMS.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Resource Include="Assets\IWMS.ico" />
   </ItemGroup>
 </Project>
