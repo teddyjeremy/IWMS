@@ -86,8 +86,8 @@ public sealed class SalesOrdersController : ControllerBase
                     l.QuantityPicked,
                     l.QuantityDispatched,
                     l.UnitPrice,
-                    l.LineTotal)).ToList(),
-                o.Lines.Sum(l => (decimal?)l.LineTotal) ?? 0m,
+                    l.QuantityOrdered * l.UnitPrice)).ToList(),
+                o.Lines.Sum(l => (decimal?)(l.QuantityOrdered * l.UnitPrice)) ?? 0m,
                 o.Version))
             .SingleOrDefaultAsync(ct);
 
