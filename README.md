@@ -60,12 +60,12 @@ Architecture and entity relationship diagrams are in [`docs/architecture.md`](do
 
 Work in small, reviewable sections. Keep each commit focused, run the build and tests, and use the Actions result as the checkpoint before moving to the next section.
 
-1. Stabilise project references, persistence and the existing receiving, stock ledger and purchasing flows.
-2. Complete fulfillment: customers, sales orders, stock reservations, picking, dispatch, backorders and cancellation.
-3. Add reporting: stock value, low-stock items, open purchase orders, pending approvals, trend data and CSV/PDF export.
-4. Add document-based transfers, stock counts, returns and short-closing orders.
-5. Build the Windows desktop UI against the API, then package the UI and its required runtime/deployment files.
-6. Add CI coverage, setup instructions, architecture and entity-relationship diagrams, and release documentation.
+1. Validate the existing project references, migrations, receiving, stock ledger and purchasing flows with a successful CI run.
+2. Exercise fulfillment end to end: reservations, partial stock, backorders, pick lists, dispatch, and cancellation under concurrent requests.
+3. Validate dashboard totals, trend data and CSV/PDF exports against seeded database scenarios.
+4. Complete document-based transfers, stock counts, returns and short-closing orders.
+5. Finish desktop editing and administrative screens, improve validation/error presentation, and test the packaged app against a configured API.
+6. Expand automated tests and add release/versioning and deployment guidance.
 
 The Windows desktop client lives in `IWMS.Desktop` (WPF). GitHub Actions publishes it separately as `IWMS-Desktop-win-x64`. The current client includes sign-in, a live KPI dashboard, API-backed read views for customers, sales orders, products and purchase orders, customer and sales-order creation, order confirmation/cancellation, reservation and pick-list actions, shipment picking/dispatch/cancellation, and inventory CSV/PDF exports. Editing existing customer/product/order details and broader administrative screens remain in progress.
 
@@ -90,7 +90,7 @@ All endpoints below require a valid bearer token unless the authentication endpo
 
 The desktop client is a WPF app in `IWMS.Desktop`. It connects to the API URL entered at sign-in; configure the API's database and JWT settings before use. Download `IWMS-Desktop-win-x64` and `IWMS-Api-win-x64` from the same successful GitHub Actions run.
 
-Fulfillment operations that modify stock use a database transaction. Test these workflows against a non-production database before operational use. PDF reporting and the Windows desktop UI are still under development; the current CI publish artifact is the API, not a desktop installer.
+Fulfillment operations that modify stock use serializable database transactions. These new workflows and the desktop client have not yet been verified by a successful CI run, so test them against a non-production database before operational use. The API and desktop client are published as separate artifacts; the API artifact is not a desktop installer.
 
 ## Security
 
