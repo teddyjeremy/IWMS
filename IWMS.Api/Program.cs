@@ -105,8 +105,9 @@ var app = builder.Build();
 // host secrets, never in source control. Existing accounts are never overwritten.
 var bootstrapAdminEmail = builder.Configuration["BootstrapAdmin:Email"];
 var bootstrapAdminPassword = builder.Configuration["BootstrapAdmin:Password"];
-if (!string.IsNullOrWhiteSpace(bootstrapAdminEmail) ||
-    !string.IsNullOrWhiteSpace(bootstrapAdminPassword))
+if (!app.Environment.IsDevelopment() &&
+    (!string.IsNullOrWhiteSpace(bootstrapAdminEmail) ||
+     !string.IsNullOrWhiteSpace(bootstrapAdminPassword)))
 {
     if (string.IsNullOrWhiteSpace(bootstrapAdminEmail) ||
         string.IsNullOrWhiteSpace(bootstrapAdminPassword))
