@@ -82,3 +82,13 @@ jobs:
           name: IWMS-Desktop-win-x64
           path: ./publish/IWMS.Desktop/
           if-no-files-found: error
+
+  container-build:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build production API container
+        run: docker build --tag iwms-api:ci .
