@@ -75,8 +75,6 @@
                 <StackPanel VerticalAlignment="Center" Margin="48" MaxWidth="430">
                     <TextBlock Text="Welcome back" FontSize="30" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
                     <TextBlock Text="Sign in to continue to your workspace." FontSize="14" Foreground="{StaticResource MutedInk}" Margin="0,8,0,28"/>
-                    <TextBlock Text="API server address" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
-                    <TextBox x:Name="LoginApiUrlBox" Text="https://localhost:7001/" MinWidth="0" ToolTip="Use your deployed HTTPS API address in production."/>
                     <TextBlock Text="Work email" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
                     <TextBox x:Name="LoginEmailBox" MinWidth="0" ToolTip="Enter the email associated with your IWMS account."/>
                     <TextBlock Text="Password" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
