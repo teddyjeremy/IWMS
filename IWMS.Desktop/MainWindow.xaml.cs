@@ -111,7 +111,7 @@ public partial class MainWindow : Window
         DashboardNavButton.Visibility = Visibility.Visible;
         CustomersNavButton.Visibility = admin || sales ? Visibility.Visible : Visibility.Collapsed;
         SalesOrdersNavButton.Visibility = admin || sales || manager || operatorRole ? Visibility.Visible : Visibility.Collapsed;
-        FulfillmentNavButton.Visibility = admin || manager || operatorRole || sales ? Visibility.Visible : Visibility.Collapsed;
+        FulfillmentNavButton.Visibility = admin || manager || operatorRole ? Visibility.Visible : Visibility.Collapsed;
         TransfersNavButton.Visibility = admin || manager || operatorRole ? Visibility.Visible : Visibility.Collapsed;
         CountsNavButton.Visibility = admin || manager || operatorRole ? Visibility.Visible : Visibility.Collapsed;
         ReturnsNavButton.Visibility = admin || manager || operatorRole ? Visibility.Visible : Visibility.Collapsed;
