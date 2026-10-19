@@ -7,46 +7,52 @@
     <Grid>
         <Grid x:Name="ShellRoot" Visibility="Collapsed">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="230"/>
+            <ColumnDefinition Width="246"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Border Background="#122F43" Grid.Column="0">
             <DockPanel Margin="18">
-                <StackPanel DockPanel.Dock="Top" Margin="0,8,0,30">
+                <StackPanel DockPanel.Dock="Top" Margin="0,8,0,24">
                     <TextBlock Text="IWMS" Foreground="White" FontSize="28" FontWeight="Bold"/>
-                    <TextBlock Text="WAREHOUSE OPERATIONS" Foreground="#AFC6D4" FontSize="10" Margin="0,5,0,0"/>
+                    <TextBlock Text="WAREHOUSE OPERATIONS" Foreground="#AFC6D4" FontSize="10" FontWeight="SemiBold" CharacterSpacing="120" Margin="0,5,0,0"/>
+                    <Border Height="1" Background="#315164" Margin="0,20,0,0"/>
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom">
-                    <TextBlock x:Name="ConnectionLabel" Text="Signed in" Foreground="#C8D6DF" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <Border Height="1" Background="#315164" Margin="0,0,0,14"/>
+                    <TextBlock x:Name="ConnectionLabel" Text="Signed in" Foreground="#C8D6DF" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                    <TextBlock x:Name="RoleLabel" Text="Workspace" Foreground="#86A9BC" FontSize="11" Margin="0,0,0,12"/>
                     <Button Content="Sign out" Click="SignOut_Click" HorizontalContentAlignment="Left"/>
                 </StackPanel>
                 <StackPanel>
-                    <Button Content="Dashboard" Tag="Dashboard" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
-                    <Button Content="Customers" Tag="Customers" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
-                    <Button Content="Sales orders" Tag="Sales orders" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
-                    <Button Content="Fulfillment" Tag="Fulfillment" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
-                    <Button Content="Stock transfers" Tag="Stock transfers" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
-                    <Button Content="Stock counts" Tag="Stock counts" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
-                    <Button Content="Returns" Tag="Returns" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
-                    <Button Content="Inventory" Tag="Inventory" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
-                    <Button Content="Purchasing" Tag="Purchasing" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <TextBlock Text="WORKSPACE" Foreground="#86A9BC" FontSize="10" FontWeight="SemiBold" Margin="10,0,0,8"/>
+                    <Button x:Name="DashboardNavButton" Content="Dashboard" Tag="Dashboard" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button x:Name="CustomersNavButton" Content="Customers" Tag="Customers" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button x:Name="SalesOrdersNavButton" Content="Sales orders" Tag="Sales orders" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button x:Name="FulfillmentNavButton" Content="Fulfillment" Tag="Fulfillment" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button x:Name="TransfersNavButton" Content="Stock transfers" Tag="Stock transfers" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button x:Name="CountsNavButton" Content="Stock counts" Tag="Stock counts" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button x:Name="ReturnsNavButton" Content="Returns" Tag="Returns" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button x:Name="InventoryNavButton" Content="Inventory" Tag="Inventory" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button x:Name="PurchasingNavButton" Content="Purchasing" Tag="Purchasing" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
+                    <Button x:Name="ReportsNavButton" Content="Reports &amp; exports" Tag="Reports" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
                     <Button Content="Users &amp; access" x:Name="UsersNavButton" Tag="Users" Click="Navigate_Click" HorizontalContentAlignment="Left" Visibility="Collapsed"/>
-                    <Button Content="Reports" Tag="Reports" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
                 </StackPanel>
             </DockPanel>
         </Border>
-        <Grid Grid.Column="1" Margin="30">
+        <Grid Grid.Column="1" Margin="32,28,32,24">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <StackPanel Grid.Row="0" Margin="0,0,0,22">
-                <TextBlock x:Name="PageTitle" Text="Dashboard" FontSize="30" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+            <StackPanel Grid.Row="0" Margin="0,0,0,24">
+                <TextBlock x:Name="PageTitle" Text="Dashboard" FontSize="30" FontWeight="Bold" Foreground="{StaticResource Ink}"/>
                 <TextBlock x:Name="PageSubtitle" Text="Inventory position and warehouse activity" FontSize="14" Foreground="{StaticResource MutedInk}" Margin="0,6,0,0"/>
             </StackPanel>
             <ContentControl x:Name="PageContent" Grid.Row="1"/>
-            <TextBlock x:Name="StatusText" Grid.Row="2" Text="Connect to the IWMS API to load live data." Foreground="{StaticResource MutedInk}" Margin="0,18,0,0"/>
+            <Border Grid.Row="2" Background="#E9EFF4" CornerRadius="8" Padding="12,9" Margin="0,16,0,0">
+                <TextBlock x:Name="StatusText" Text="Connect to the IWMS API to load live data." Foreground="{StaticResource MutedInk}" TextWrapping="Wrap"/>
+            </Border>
         </Grid>
         </Grid>
         <Grid x:Name="LoginRoot" Visibility="Visible" Background="#F2F5F8">
