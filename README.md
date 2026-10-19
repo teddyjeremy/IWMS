@@ -64,7 +64,7 @@ Work in small, reviewable sections. Keep each commit focused, run the build and 
 1. Validate the existing project references, migrations, receiving, stock ledger and purchasing flows with a successful CI run.
 2. Exercise fulfillment end to end: reservations, partial stock, backorders, pick lists, dispatch, and cancellation under concurrent requests.
 3. Validate dashboard totals, trend data and CSV/PDF exports against seeded database scenarios.
-4. Complete document-based transfers, stock counts, returns and short-closing orders.
+4. Complete document-based transfers, stock counts and return processing; short-close orders are implemented and need workflow verification.
 5. Finish desktop editing and administrative screens, improve validation/error presentation, and test the packaged app against a configured API.
 6. Expand automated tests and add release/versioning and deployment guidance.
 
@@ -84,6 +84,7 @@ All endpoints below require a valid bearer token unless the authentication endpo
 - `POST /api/fulfillment/shipments/{id}/pick` — record picked quantities.
 - `POST /api/fulfillment/shipments/{id}/dispatch` — post dispatch movements and update order fulfillment.
 - `POST /api/fulfillment/sales-orders/{id}/cancel` and `POST /api/fulfillment/shipments/{id}/cancel` — cancel eligible orders/shipments and release order reservations.
+- `POST /api/fulfillment/sales-orders/{id}/close-short` — close an eligible backordered/partially fulfilled order, release remaining reservations and cancel open pick lists.
 - `GET /api/reports/dashboard` — stock value, low-stock products, open purchase orders, pending approvals and order totals.
 - `GET /api/reports/inventory-trend?days=30` — daily movement totals for the requested period.
 - `GET /api/reports/inventory.csv` — download an inventory CSV.
@@ -91,7 +92,7 @@ All endpoints below require a valid bearer token unless the authentication endpo
 
 The desktop client is a WPF app in `IWMS.Desktop`. It connects to the API URL entered at sign-in; configure the API's database and JWT settings before use. Download `IWMS-Desktop-win-x64` and `IWMS-Api-win-x64` from the same successful GitHub Actions run.
 
-Fulfillment operations that modify stock use serializable database transactions. These new workflows and the desktop client have not yet been verified by a successful CI run, so test them against a non-production database before operational use. The API and desktop client are published as separate artifacts; the API artifact is not a desktop installer.
+Fulfillment operations that modify stock use serializable database transactions. The latest GitHub Actions run passed the solution build and tests and successfully published both Windows artifacts. This verifies compilation and packaging, not live-database behaviour; test workflows against a non-production database before operational use. The API and desktop client are published as separate artifacts; the API artifact is not a desktop installer.
 
 ## Security
 
