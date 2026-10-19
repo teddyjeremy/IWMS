@@ -38,6 +38,9 @@ public partial class MainWindow : Window
             "Customers" => "Customer records and account details",
             "Sales orders" => "Order entry and fulfillment status",
             "Fulfillment" => "Reservations, pick lists and dispatch",
+            "Stock transfers" => "Warehouse-to-warehouse transfer documents",
+            "Stock counts" => "Physical counts, variances and stock adjustments",
+            "Returns" => "Customer and supplier return records",
             "Inventory" => "Stock position by product and location",
             "Purchasing" => "Purchase orders and approvals",
             "Reports" => "Inventory KPIs and downloadable reports",
@@ -139,6 +142,9 @@ public partial class MainWindow : Window
             "Inventory" => "api/products",
             "Purchasing" => "api/purchase-orders",
             "Fulfillment" => _showShipments ? "api/fulfillment/shipments" : "api/sales-orders",
+            "Stock transfers" => "api/stock-transfers",
+            "Stock counts" => "api/stock-counts",
+            "Returns" => "api/returns",
             _ => string.Empty
         };
 
@@ -153,7 +159,7 @@ public partial class MainWindow : Window
             StatusText.Text = $"Loading {page.ToLowerInvariant()}...";
             var json = await _api.GetJsonAsync(endpoint);
             var dataGrid = CreateDataGrid(json);
-            if (page is "Customers" or "Sales orders" or "Fulfillment")
+            if (page is "Customers" or "Sales orders" or "Fulfillment" or "Stock transfers" or "Stock counts")
             {
                 var workspace = new DockPanel();
                 var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
@@ -184,6 +190,42 @@ public partial class MainWindow : Window
                         toolbar.Children.Add(confirmButton);
                         toolbar.Children.Add(cancelOrderButton);
                     }
+                }
+                else if (page == "Stock transfers")
+                {
+                    var approveButton = new Button { Content = "Approve selected" };
+                    approveButton.Click += async (_, _) => await RunSelectedTransferActionAsync(dataGrid, "approve");
+                    var rejectButton = new Button { Content = "Reject selected" };
+                    rejectButton.Click += async (_, _) => await RunSelectedTransferActionAsync(dataGrid, "reject");
+                    var dispatchTransferButton = new Button { Content = "Dispatch selected" };
+                    dispatchTransferButton.Click += async (_, _) => await RunSelectedTransferActionAsync(dataGrid, "dispatch");
+                    var receiveTransferButton = new Button { Content = "Receive full shipment" };
+                    receiveTransferButton.Click += async (_, _) => await RunSelectedTransferActionAsync(dataGrid, "receive");
+                    toolbar.Children.Add(approveButton);
+                    toolbar.Children.Add(rejectButton);
+                    toolbar.Children.Add(dispatchTransferButton);
+                    toolbar.Children.Add(receiveTransferButton);
+                }
+                else if (page == "Stock counts")
+                {
+                    var startCountButton = new Button { Content = "Start count" };
+                    startCountButton.Click += async (_, _) =>
+                    {
+                        var warehouseText = Prompt("Start stock count", "Enter warehouse ID (GUID):");
+                        if (!Guid.TryParse(warehouseText, out var warehouseId))
+                        {
+                            StatusText.Text = "Enter a valid warehouse ID.";
+                            return;
+                        }
+                        try
+                        {
+                            await _api.PostJsonAsync("api/stock-counts", new { warehouseId, notes = "Started from desktop client" });
+                            await LoadWorkspaceAsync("Stock counts");
+                            StatusText.Text = "Stock count started.";
+                        }
+                        catch (Exception ex) { StatusText.Text = ex.Message; }
+                    };
+                    toolbar.Children.Add(startCountButton);
                 }
                 else if (!_showShipments)
                 {
