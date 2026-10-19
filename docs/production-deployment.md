@@ -13,7 +13,7 @@ The desktop client sends HTTPS requests to the API. The API reads and writes the
 
 ## API host configuration
 
-Choose and provision an ASP.NET Core host before distributing the application. The host must support .NET 10, HTTPS, environment variables/secrets, outbound PostgreSQL connectivity, and health checks.
+A portable Docker image is included at the repository root. Build it with `docker build -t iwms-api .` and deploy the image to a container host such as Azure Container Apps or another managed container service. The container listens on port `8080`; configure the host to provide public HTTPS, environment variables/secrets, outbound PostgreSQL connectivity, and health checks. Alternatively, publish the API directly to a managed ASP.NET Core host.
 
 Set these values in the API host's secret/configuration settings:
 
