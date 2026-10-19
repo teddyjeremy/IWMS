@@ -306,6 +306,43 @@ public partial class MainWindow : Window
                         if (created == true) await LoadWorkspaceAsync(page);
                     };
                     toolbar.Children.Add(addButton);
+                    if (page == "Customers")
+                    {
+                        var editCustomerButton = new Button { Content = "Edit selected" };
+                        editCustomerButton.Click += async (_, _) =>
+                        {
+                            var customerId = GetSelectedGuid(dataGrid);
+                            if (customerId is null)
+                            {
+                                StatusText.Text = "Select a customer first.";
+                                return;
+                            }
+                            var dialog = new NewCustomerWindow(_api, customerId.Value) { Owner = this };
+                            if (dialog.ShowDialog() == true) await LoadWorkspaceAsync("Customers");
+                        };
+                        var deactivateCustomerButton = new Button { Content = "Deactivate selected" };
+                        deactivateCustomerButton.Click += async (_, _) =>
+                        {
+                            var customerId = GetSelectedGuid(dataGrid);
+                            if (customerId is null)
+                            {
+                                StatusText.Text = "Select a customer first.";
+                                return;
+                            }
+                            if (MessageBox.Show("Deactivate this customer? Existing order history will be retained.",
+                                "Deactivate customer", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                                return;
+                            try
+                            {
+                                await _api.PostJsonAsync($"api/customers/{customerId.Value}/deactivate", new { });
+                                StatusText.Text = "Customer deactivated.";
+                                await LoadWorkspaceAsync("Customers");
+                            }
+                            catch (Exception ex) { StatusText.Text = ex.Message; }
+                        };
+                        toolbar.Children.Add(editCustomerButton);
+                        toolbar.Children.Add(deactivateCustomerButton);
+                    }
                     if (page == "Sales orders")
                     {
                         var confirmButton = new Button { Content = "Confirm selected" };
