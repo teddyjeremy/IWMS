@@ -55,7 +55,7 @@ GitHub Actions runs on pushes and pull requests targeting `master` or `main`. It
 
 Find both artifacts under **Actions → Build and test → workflow run → Artifacts**: `IWMS-Api-win-x64` and `IWMS-Desktop-win-x64`. The API needs valid JWT/database configuration and a reachable PostgreSQL database; the desktop client needs the API running and reachable.
 
-Architecture and entity relationship diagrams are in [`docs/architecture.md`](docs/architecture.md).
+Architecture and entity relationship diagrams are in [`docs/architecture.md`](docs/architecture.md). Production hosting, Neon connection configuration, user onboarding, and Microsoft Store release requirements are documented in [`docs/production-deployment.md`](docs/production-deployment.md).
 
 ## Development roadmap
 
@@ -68,7 +68,7 @@ Work in small, reviewable sections. Keep each commit focused, run the build and 
 5. Finish desktop editing and administrative screens, improve validation/error presentation, and test the packaged app against a configured API.
 6. Expand automated tests and add release/versioning and deployment guidance.
 
-The Windows desktop client lives in `IWMS.Desktop` (WPF). GitHub Actions publishes it separately as `IWMS-Desktop-win-x64`. The current client includes sign-in, a live KPI dashboard, API-backed read views for customers, sales orders, products, purchase orders, stock transfers, stock counts and returns; customer and sales-order creation; order confirmation/cancellation; reservation, pick-list, picking, dispatch and short-close actions; transfer request/approval/rejection/dispatch/receipt; stock-count entry/posting; basic customer/supplier return entry; and inventory CSV/PDF exports. Editing existing customer/product/order details and broader administrative screens remain in progress.
+The Windows desktop client lives in `IWMS.Desktop` (WPF). GitHub Actions publishes it separately as `IWMS-Desktop-win-x64`. The current client opens on a dedicated sign-in splash screen and keeps the application shell hidden until authentication succeeds. It supports sign-out, HTTPS-only remote API URLs, and an optional `IWMS_API_BASE_URL` environment variable for managed deployments. The current client includes a live KPI dashboard, API-backed read views for customers, sales orders, products, purchase orders, stock transfers, stock counts and returns; customer and sales-order creation; order confirmation/cancellation; reservation, pick-list, picking, dispatch and short-close actions; transfer request/approval/rejection/dispatch/receipt; stock-count entry/posting; basic customer/supplier return entry; and inventory CSV/PDF exports. Editing existing customer/product/order details and broader administrative screens remain in progress.
 
 ## Fulfillment and reporting endpoints
 
