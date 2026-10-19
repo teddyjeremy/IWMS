@@ -110,7 +110,7 @@ public partial class MainWindow : Window
 
         DashboardNavButton.Visibility = Visibility.Visible;
         CustomersNavButton.Visibility = admin || sales ? Visibility.Visible : Visibility.Collapsed;
-        SalesOrdersNavButton.Visibility = admin || sales || manager ? Visibility.Visible : Visibility.Collapsed;
+        SalesOrdersNavButton.Visibility = admin || sales || manager || operatorRole ? Visibility.Visible : Visibility.Collapsed;
         FulfillmentNavButton.Visibility = admin || manager || operatorRole || sales ? Visibility.Visible : Visibility.Collapsed;
         TransfersNavButton.Visibility = admin || manager || operatorRole ? Visibility.Visible : Visibility.Collapsed;
         CountsNavButton.Visibility = admin || manager || operatorRole ? Visibility.Visible : Visibility.Collapsed;
@@ -290,11 +290,16 @@ public partial class MainWindow : Window
                 var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
                 if (page is "Customers" or "Sales orders")
                 {
+                    var canManageMasterData = _api.IsInRole("Administrator") || _api.IsInRole("Warehouse Manager");
+                    var canPostIssue = _api.IsInRole("Warehouse Manager") || _api.IsInRole("Warehouse Operator");
                     var addButton = new Button
                     {
                         Content = page == "Customers" ? "New customer" : "New sales order",
                         Background = System.Windows.Media.Brushes.SteelBlue,
-                        Foreground = System.Windows.Media.Brushes.White
+                        Foreground = System.Windows.Media.Brushes.White,
+                        Visibility = page == "Customers"
+                            ? (canManageMasterData ? Visibility.Visible : Visibility.Collapsed)
+                            : (canPostIssue ? Visibility.Visible : Visibility.Collapsed)
                     };
                     addButton.Click += async (_, _) =>
                     {
@@ -306,7 +311,7 @@ public partial class MainWindow : Window
                         if (created == true) await LoadWorkspaceAsync(page);
                     };
                     toolbar.Children.Add(addButton);
-                    if (page == "Customers")
+                    if (page == "Customers" && canManageMasterData)
                     {
                         var editCustomerButton = new Button { Content = "Edit selected" };
                         editCustomerButton.Click += async (_, _) =>
@@ -345,9 +350,9 @@ public partial class MainWindow : Window
                     }
                     if (page == "Sales orders")
                     {
-                        var confirmButton = new Button { Content = "Confirm selected" };
+                        var confirmButton = new Button { Content = "Confirm selected", Visibility = canPostIssue ? Visibility.Visible : Visibility.Collapsed };
                         confirmButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "confirm-order");
-                        var cancelOrderButton = new Button { Content = "Cancel selected" };
+                        var cancelOrderButton = new Button { Content = "Cancel selected", Visibility = canPostIssue ? Visibility.Visible : Visibility.Collapsed };
                         cancelOrderButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "cancel-order");
                         toolbar.Children.Add(confirmButton);
                         toolbar.Children.Add(cancelOrderButton);
