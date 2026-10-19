@@ -65,6 +65,15 @@ public sealed class ApiClient
         }
     }
 
+    public async Task PutJsonAsync(string path, object payload, CancellationToken ct = default)
+    {
+        using var response = await _http.PutAsJsonAsync(path, payload, JsonOptions, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var detail = await response.Content.ReadAsStringAsync(ct);
+            throw new InvalidOperationException($"Request failed ({(int)response.StatusCode}): {detail}");
+        }
+    }
     public async Task<JsonElement> GetJsonAsync(string path, CancellationToken ct = default)
     {
         using var response = await _http.GetAsync(path, ct);
