@@ -11,6 +11,7 @@ namespace IWMS.Desktop;
 public partial class MainWindow : Window
 {
     private readonly ApiClient _api = new();
+    private bool _showShipments;
 
     public MainWindow()
     {
@@ -31,6 +32,7 @@ public partial class MainWindow : Window
     {
         if (sender is not Button { Tag: string page }) return;
         PageTitle.Text = page;
+        if (page == "Fulfillment") _showShipments = false;
         PageSubtitle.Text = page switch
         {
             "Customers" => "Customer records and account details",
@@ -127,7 +129,7 @@ public partial class MainWindow : Window
             "Sales orders" => "api/sales-orders",
             "Inventory" => "api/products",
             "Purchasing" => "api/purchase-orders",
-            "Fulfillment" => "api/sales-orders",
+            "Fulfillment" => _showShipments ? "api/fulfillment/shipments" : "api/sales-orders",
             _ => string.Empty
         };
 
@@ -142,27 +144,62 @@ public partial class MainWindow : Window
             StatusText.Text = $"Loading {page.ToLowerInvariant()}...";
             var json = await _api.GetJsonAsync(endpoint);
             var dataGrid = CreateDataGrid(json);
-            if (page is "Customers" or "Sales orders")
+            if (page is "Customers" or "Sales orders" or "Fulfillment")
             {
                 var workspace = new DockPanel();
                 var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
-                var addButton = new Button
+                if (page is "Customers" or "Sales orders")
                 {
-                    Content = page == "Customers" ? "New customer" : "New sales order",
-                    Background = System.Windows.Media.Brushes.SteelBlue,
-                    Foreground = System.Windows.Media.Brushes.White
-                };
-                addButton.Click += async (_, _) =>
+                    var addButton = new Button
+                    {
+                        Content = page == "Customers" ? "New customer" : "New sales order",
+                        Background = System.Windows.Media.Brushes.SteelBlue,
+                        Foreground = System.Windows.Media.Brushes.White
+                    };
+                    addButton.Click += async (_, _) =>
+                    {
+                        bool? created;
+                        if (page == "Customers")
+                            created = new NewCustomerWindow(_api) { Owner = this }.ShowDialog();
+                        else
+                            created = new NewSalesOrderWindow(_api) { Owner = this }.ShowDialog();
+                        if (created == true) await LoadWorkspaceAsync(page);
+                    };
+                    toolbar.Children.Add(addButton);
+                }
+                else if (!_showShipments)
                 {
-                    bool? created;
-                    if (page == "Customers")
-                        created = new NewCustomerWindow(_api) { Owner = this }.ShowDialog();
-                    else
-                        created = new NewSalesOrderWindow(_api) { Owner = this }.ShowDialog();
-                    if (created == true)
-                        await LoadWorkspaceAsync(page);
-                };
-                toolbar.Children.Add(addButton);
+                    var reserveButton = new Button { Content = "Reserve stock" };
+                    reserveButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "reserve");
+                    var pickListButton = new Button { Content = "Create pick list" };
+                    pickListButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "pick-list");
+                    var shipmentsButton = new Button { Content = "Show pick lists" };
+                    shipmentsButton.Click += async (_, _) => { _showShipments = true; await LoadWorkspaceAsync("Fulfillment"); };
+                    toolbar.Children.Add(reserveButton);
+                    toolbar.Children.Add(pickListButton);
+                    toolbar.Children.Add(shipmentsButton);
+                }
+                else
+                {
+                    var ordersButton = new Button { Content = "Show sales orders" };
+                    ordersButton.Click += async (_, _) => { _showShipments = false; await LoadWorkspaceAsync("Fulfillment"); };
+                    var pickButton = new Button { Content = "Record picked quantities" };
+                    pickButton.Click += async (_, _) =>
+                    {
+                        var id = GetSelectedGuid(dataGrid);
+                        if (id is null) { StatusText.Text = "Select a shipment first."; return; }
+                        var dialog = new PickShipmentWindow(_api, id.Value) { Owner = this };
+                        if (dialog.ShowDialog() == true) await LoadWorkspaceAsync("Fulfillment");
+                    };
+                    var dispatchButton = new Button { Content = "Dispatch shipment" };
+                    dispatchButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "dispatch");
+                    var cancelButton = new Button { Content = "Cancel shipment" };
+                    cancelButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "cancel-shipment");
+                    toolbar.Children.Add(ordersButton);
+                    toolbar.Children.Add(pickButton);
+                    toolbar.Children.Add(dispatchButton);
+                    toolbar.Children.Add(cancelButton);
+                }
                 DockPanel.SetDock(toolbar, Dock.Top);
                 workspace.Children.Add(toolbar);
                 workspace.Children.Add(dataGrid);
@@ -234,6 +271,34 @@ public partial class MainWindow : Window
         JsonValueKind.Object or JsonValueKind.Array => value.ToString(),
         _ => value.ToString()
     };
+
+
+    private static Guid? GetSelectedGuid(DataGrid grid)
+    {
+        if (grid.SelectedItem is not DataRowView row || !row.Row.Table.Columns.Contains("id"))
+            return null;
+        return Guid.TryParse(Convert.ToString(row["id"], CultureInfo.InvariantCulture), out var id) ? id : null;
+    }
+
+    private async Task RunSelectedFulfillmentActionAsync(DataGrid grid, string action)
+    {
+        var id = GetSelectedGuid(grid);
+        if (id is null) { StatusText.Text = "Select a row first."; return; }
+        try
+        {
+            if (action == "reserve")
+                await _api.PostJsonAsync($"api/fulfillment/sales-orders/{id}/reserve", new { });
+            else if (action == "pick-list")
+                await _api.PostJsonAsync($"api/fulfillment/sales-orders/{id}/pick-list", new { });
+            else if (action == "dispatch")
+                await _api.PostJsonAsync($"api/fulfillment/shipments/{id}/dispatch", new { });
+            else if (action == "cancel-shipment")
+                await _api.PostJsonAsync($"api/fulfillment/shipments/{id}/cancel", new { });
+            StatusText.Text = "Fulfillment action completed.";
+            await LoadWorkspaceAsync("Fulfillment");
+        }
+        catch (Exception ex) { StatusText.Text = ex.Message; }
+    }
 
     private async Task DownloadInventoryCsvAsync()
     {
