@@ -15,7 +15,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\IWMS.Domain\IWMS.Domain.csproj" />
+    <ProjectReference Include="..\IWMS.Api\IWMS.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>
