@@ -11,7 +11,7 @@
         </Grid.RowDefinitions>
         <StackPanel Margin="0,0,0,18">
             <TextBlock x:Name="HeaderText" Text="Edit product" FontSize="25" FontWeight="Bold" Foreground="{StaticResource Ink}"/>
-            <TextBlock Text="Update catalogue details. On-hand and reserved quantities are read-only inventory values."
+            <TextBlock x:Name="SubtitleText" Text="Update catalogue details. On-hand and reserved quantities are read-only inventory values."
                        TextWrapping="Wrap" Foreground="{StaticResource MutedInk}" Margin="0,7,0,0"/>
         </StackPanel>
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">

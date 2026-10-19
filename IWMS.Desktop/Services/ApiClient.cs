@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace IWMS.Desktop.Services;
 
@@ -108,6 +109,47 @@ public sealed class ApiClient
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException($"Request failed ({(int)response.StatusCode}) for {path}.");
         return await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions, ct);
+    }
+
+    public async Task<JsonElement> GetListJsonAsync(string path, CancellationToken ct = default)
+    {
+        var first = await GetJsonAsync(WithPage(path, 1, 100), ct);
+        if (first.ValueKind != JsonValueKind.Object ||
+            !first.TryGetProperty("items", out var items) ||
+            items.ValueKind != JsonValueKind.Array)
+            return first;
+
+        var total = first.TryGetProperty("totalCount", out var totalElement) && totalElement.TryGetInt32(out var parsedTotal)
+            ? parsedTotal
+            : items.GetArrayLength();
+        var all = new JsonArray();
+        foreach (var item in items.EnumerateArray())
+            all.Add(JsonNode.Parse(item.GetRawText()));
+
+        var page = 2;
+        while (all.Count < total && all.Count < 400 && page <= 8)
+        {
+            var next = await GetJsonAsync(WithPage(path, page, 100), ct);
+            if (!next.TryGetProperty("items", out var nextItems) || nextItems.ValueKind != JsonValueKind.Array || nextItems.GetArrayLength() == 0)
+                break;
+            foreach (var item in nextItems.EnumerateArray())
+                all.Add(JsonNode.Parse(item.GetRawText()));
+            page++;
+        }
+
+        return JsonSerializer.SerializeToElement(new { items = all, totalCount = total, pageSize = all.Count }, JsonOptions);
+    }
+
+    private static string WithPage(string path, int page, int pageSize)
+    {
+        var split = path.Split('?', 2);
+        var kept = split.Length == 2
+            ? split[1].Split('&', StringSplitOptions.RemoveEmptyEntries)
+                .Where(part => !part.StartsWith("page=", StringComparison.OrdinalIgnoreCase) &&
+                               !part.StartsWith("pageSize=", StringComparison.OrdinalIgnoreCase))
+            : Array.Empty<string>();
+        var query = string.Join("&", kept.Append($"page={page}").Append($"pageSize={pageSize}"));
+        return split[0] + "?" + query;
     }
 
     public async Task<byte[]> GetBytesAsync(string path, CancellationToken ct = default)

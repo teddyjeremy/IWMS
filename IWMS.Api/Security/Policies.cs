@@ -32,22 +32,24 @@ public static class AuthorizationSetup
             .AddPolicy(Policies.ManageMasterData, p =>
                 p.RequireRole(RoleNames.Administrator, RoleNames.WarehouseManager))
             .AddPolicy(Policies.ReceiveGoods, p =>
-                p.RequireRole(RoleNames.WarehouseOperator, RoleNames.WarehouseManager))
+                p.RequireRole(RoleNames.Administrator, RoleNames.WarehouseOperator, RoleNames.WarehouseManager))
             .AddPolicy(Policies.PostIssue, p =>
-                p.RequireRole(RoleNames.WarehouseOperator, RoleNames.WarehouseManager))
+                p.RequireRole(RoleNames.Administrator, RoleNames.WarehouseOperator, RoleNames.WarehouseManager))
             .AddPolicy(Policies.ManageSalesOrders, p =>
                 p.RequireRole(RoleNames.Administrator, RoleNames.WarehouseManager, RoleNames.SalesOfficer))
             .AddPolicy(Policies.PostTransfer, p =>
-                p.RequireRole(RoleNames.WarehouseOperator, RoleNames.WarehouseManager))
-            .AddPolicy(Policies.PostAdjustment, p => p.RequireRole(RoleNames.WarehouseManager))
-            .AddPolicy(Policies.OverReceive, p => p.RequireRole(RoleNames.WarehouseManager))
-            .AddPolicy(Policies.ReverseMovements, p => p.RequireRole(RoleNames.WarehouseManager))
+                p.RequireRole(RoleNames.Administrator, RoleNames.WarehouseOperator, RoleNames.WarehouseManager))
+            .AddPolicy(Policies.PostAdjustment, p => p.RequireRole(RoleNames.Administrator, RoleNames.WarehouseManager))
+            .AddPolicy(Policies.OverReceive, p => p.RequireRole(RoleNames.Administrator, RoleNames.WarehouseManager))
+            .AddPolicy(Policies.ReverseMovements, p => p.RequireRole(RoleNames.Administrator, RoleNames.WarehouseManager))
             .AddPolicy(Policies.ManageSuppliers, p =>
                 p.RequireRole(RoleNames.Administrator, RoleNames.Purchaser))
-            .AddPolicy(Policies.ManagePurchaseOrders, p => p.RequireRole(RoleNames.Purchaser))
-            .AddPolicy(Policies.ApprovePurchaseOrders, p => p.RequireRole(RoleNames.WarehouseManager))
+            .AddPolicy(Policies.ManagePurchaseOrders, p =>
+                p.RequireRole(RoleNames.Administrator, RoleNames.Purchaser))
+            .AddPolicy(Policies.ApprovePurchaseOrders, p =>
+                p.RequireRole(RoleNames.Administrator, RoleNames.WarehouseManager))
             .AddPolicy(Policies.CancelPurchaseOrders, p =>
-                p.RequireRole(RoleNames.Purchaser, RoleNames.WarehouseManager))
+                p.RequireRole(RoleNames.Administrator, RoleNames.Purchaser, RoleNames.WarehouseManager))
             .AddPolicy(Policies.ManageUsers, p => p.RequireRole(RoleNames.Administrator))
             .AddPolicy(Policies.ViewAudit, p =>
                 p.RequireRole(RoleNames.Administrator, RoleNames.WarehouseManager, RoleNames.Viewer));

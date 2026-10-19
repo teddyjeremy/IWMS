@@ -9,14 +9,34 @@ public partial class EditProductWindow : Window
 {
     private readonly ApiClient _api;
     private readonly Guid _productId;
+    private readonly bool _creating;
     private uint _version;
 
-    public EditProductWindow(ApiClient api, Guid productId)
+    public EditProductWindow(ApiClient api, Guid productId) : this(api, productId, creating: false)
+    {
+    }
+
+    public EditProductWindow(ApiClient api) : this(api, Guid.Empty, creating: true)
+    {
+    }
+
+    private EditProductWindow(ApiClient api, Guid productId, bool creating)
     {
         InitializeComponent();
         _api = api;
         _productId = productId;
+        _creating = creating;
         BaseUnitBox.ItemsSource = new[] { "Each", "Box", "Carton", "Kilogram", "Litre", "Metre" };
+        if (_creating)
+        {
+            Title = "New product";
+            HeaderText.Text = "New product";
+            SubtitleText.Text = "Add a catalogue item. Stock quantities are posted later through receipts, issues and adjustments.";
+            SaveButton.Content = "Create product";
+            ActiveBox.IsChecked = true;
+            CostPriceBox.Text = "0";
+            ReorderLevelBox.Text = "0";
+        }
         Loaded += async (_, _) => await LoadProductAsync();
     }
 
@@ -31,6 +51,16 @@ public partial class EditProductWindow : Window
                 var id = item.GetProperty("id").GetString()!;
                 var name = item.GetProperty("name").GetString() ?? "(unnamed category)";
                 CategoryBox.Items.Add(new CategoryChoice(id, name));
+            }
+
+            if (_creating)
+            {
+                if (CategoryBox.Items.Count > 0) CategoryBox.SelectedIndex = 0;
+                if (BaseUnitBox.Items.Count > 0) BaseUnitBox.SelectedIndex = 0;
+                SaveButton.IsEnabled = CategoryBox.Items.Count > 0;
+                if (CategoryBox.Items.Count == 0)
+                    ErrorText.Text = "Create a category before adding a product.";
+                return;
             }
 
             var product = await _api.GetJsonAsync($"api/products/{_productId}");
@@ -90,19 +120,34 @@ public partial class EditProductWindow : Window
         SaveButton.IsEnabled = false;
         try
         {
-            await _api.PutJsonAsync($"api/products/{_productId}", new
-            {
-                sku = SkuBox.Text.Trim(),
-                name = NameBox.Text.Trim(),
-                description = DescriptionBox.Text.Trim(),
-                barcode = string.IsNullOrWhiteSpace(BarcodeBox.Text) ? null : BarcodeBox.Text.Trim(),
-                categoryId,
-                baseUnit,
-                costPrice,
-                reorderLevel,
-                isActive = ActiveBox.IsChecked == true,
-                version = _version
-            });
+            if (_creating)
+                await _api.PostJsonAsync("api/products", new
+                {
+                    sku = SkuBox.Text.Trim(),
+                    name = NameBox.Text.Trim(),
+                    description = DescriptionBox.Text.Trim(),
+                    barcode = string.IsNullOrWhiteSpace(BarcodeBox.Text) ? null : BarcodeBox.Text.Trim(),
+                    categoryId,
+                    baseUnit,
+                    costPrice,
+                    reorderLevel,
+                    isActive = ActiveBox.IsChecked == true,
+                    version = 0
+                });
+            else
+                await _api.PutJsonAsync($"api/products/{_productId}", new
+                {
+                    sku = SkuBox.Text.Trim(),
+                    name = NameBox.Text.Trim(),
+                    description = DescriptionBox.Text.Trim(),
+                    barcode = string.IsNullOrWhiteSpace(BarcodeBox.Text) ? null : BarcodeBox.Text.Trim(),
+                    categoryId,
+                    baseUnit,
+                    costPrice,
+                    reorderLevel,
+                    isActive = ActiveBox.IsChecked == true,
+                    version = _version
+                });
             DialogResult = true;
         }
         catch (Exception ex)

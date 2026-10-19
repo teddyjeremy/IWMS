@@ -1,0 +1,38 @@
+<Window x:Class="IWMS.Desktop.StockActionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Stock action" Height="520" Width="560" MinWidth="480"
+        WindowStartupLocation="CenterOwner" Background="{StaticResource PageBackground}" ResizeMode="NoResize">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,12">
+            <TextBlock x:Name="HeaderText" Text="Stock action" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+            <TextBlock x:Name="SubtitleText" TextWrapping="Wrap" Foreground="{StaticResource MutedInk}" Margin="0,6,0,0"/>
+        </StackPanel>
+        <StackPanel Grid.Row="1">
+            <TextBlock Text="Product *"/>
+            <ComboBox x:Name="ProductBox" DisplayMemberPath="Label" Padding="8" Margin="0,4,0,12"/>
+            <TextBlock Text="Storage location *"/>
+            <ComboBox x:Name="LocationBox" DisplayMemberPath="Label" Padding="8" Margin="0,4,0,12"/>
+            <TextBlock x:Name="QuantityLabel" Text="Quantity *"/>
+            <TextBox x:Name="QuantityBox" Text="1"/>
+            <StackPanel x:Name="DirectionPanel" Orientation="Horizontal" Margin="0,0,0,12">
+                <RadioButton x:Name="IncreaseBox" Content="Increase on hand" IsChecked="True" Margin="0,0,16,0"/>
+                <RadioButton x:Name="DecreaseBox" Content="Decrease on hand"/>
+            </StackPanel>
+            <TextBlock x:Name="ReferenceLabel" Text="Reference number *"/>
+            <TextBox x:Name="ReferenceBox"/>
+            <TextBlock Text="Reason *"/>
+            <TextBox x:Name="ReasonBox" AcceptsReturn="True" Height="60" TextWrapping="Wrap"/>
+            <TextBlock x:Name="ErrorText" Foreground="#B42318" TextWrapping="Wrap"/>
+        </StackPanel>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Cancel" Click="Cancel_Click"/>
+            <Button x:Name="SaveButton" Content="Post" Click="Save_Click" IsDefault="True" Style="{StaticResource PrimaryButton}"/>
+        </StackPanel>
+    </Grid>
+</Window>

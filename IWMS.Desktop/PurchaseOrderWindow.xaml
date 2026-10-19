@@ -1,0 +1,63 @@
+<Window x:Class="IWMS.Desktop.PurchaseOrderWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="New purchase order" Height="720" Width="860" MinHeight="620" MinWidth="740"
+        WindowStartupLocation="CenterOwner" Background="{StaticResource PageBackground}">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,16">
+            <TextBlock Text="New purchase order" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+            <TextBlock Text="Create a draft, then submit it for approval." Foreground="{StaticResource MutedInk}" Margin="0,6,0,0"/>
+        </StackPanel>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="Supplier *" Foreground="{StaticResource Ink}"/>
+                <ComboBox x:Name="SupplierBox" DisplayMemberPath="Label" SelectedValuePath="Id" Padding="8" Margin="0,4,0,12"/>
+                <TextBlock Text="Order lines" FontSize="16" FontWeight="SemiBold" Margin="0,4,0,8"/>
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="3*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                        <TextBlock Text="Product *"/>
+                        <ComboBox x:Name="ProductBox" DisplayMemberPath="Label" SelectedValuePath="Id" Padding="7" Margin="0,4,0,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                        <TextBlock Text="Quantity *"/>
+                        <TextBox x:Name="QuantityBox" Text="1" Padding="7" Margin="0,4,0,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Margin="0,0,8,0">
+                        <TextBlock Text="Expected unit price *"/>
+                        <TextBox x:Name="PriceBox" Text="0" Padding="7" Margin="0,4,0,0"/>
+                    </StackPanel>
+                    <Button Grid.Column="3" Content="Add line" VerticalAlignment="Bottom" Padding="12,7" Click="AddLine_Click"/>
+                </Grid>
+                <DataGrid x:Name="LinesGrid" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single" Height="180" Margin="0,0,0,8">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Product" Binding="{Binding ProductLabel}" Width="*"/>
+                        <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity}" Width="100"/>
+                        <DataGridTextColumn Header="Unit price" Binding="{Binding UnitPrice}" Width="120"/>
+                        <DataGridTextColumn Header="Line total" Binding="{Binding LineTotal}" Width="120"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <Button Content="Remove selected line" HorizontalAlignment="Right" Margin="0,0,0,14" Click="RemoveLine_Click"/>
+                <TextBlock Text="Expected delivery (optional)" Foreground="{StaticResource Ink}"/>
+                <DatePicker x:Name="DeliveryPicker" Margin="0,4,0,12"/>
+                <TextBlock Text="Notes" Foreground="{StaticResource Ink}"/>
+                <TextBox x:Name="NotesBox" AcceptsReturn="True" Height="64" TextWrapping="Wrap" MaxLength="2000"/>
+                <TextBlock x:Name="ErrorText" Foreground="#B42318" TextWrapping="Wrap" Margin="0,8,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Content="Cancel" Click="Cancel_Click"/>
+            <Button x:Name="SaveButton" Content="Create draft" Click="Save_Click" IsDefault="True" Style="{StaticResource PrimaryButton}"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -6,12 +6,12 @@ The desktop client personalizes its navigation and dashboard after the API authe
 
 | Role | Primary workspace |
 |---|---|
-| Administrator | All operational workspaces, reports, and user access |
-| Warehouse Manager | Orders, fulfillment, transfers, counts, returns, inventory, purchasing, and reports |
-| Purchaser | Inventory, purchase orders, approval KPIs, and reports |
-| Warehouse Operator | Inventory, fulfillment, transfers, counts, and returns |
-| Sales Officer | Customers, sales order entry and draft editing, order confirmation/cancellation, inventory lookup, and order KPIs |
-| Viewer / Auditor | Read-oriented inventory, reporting, and audit KPIs |
+| Administrator | All operational workspaces, reports, charts, and user access |
+| Warehouse Manager | Orders, fulfillment, transfers, counts, returns, receipts, inventory, purchasing approval, and reports |
+| Purchaser | Inventory, suppliers, purchase orders, approval KPIs, and reports |
+| Warehouse Operator | Inventory, fulfillment, transfers, counts, returns, receipts, and goods receiving |
+| Sales Officer | Customers, sales order entry and draft editing, order confirmation/cancellation, inventory lookup, movement history, and order KPIs |
+| Viewer / Auditor | Read-oriented inventory, movement history, reporting charts, and audit KPIs |
 
 The exact permissions for every API endpoint must continue to be enforced by ASP.NET Core authorization. If the backend role names or permissions change, update the desktop role map and its tests in the same change.
 
