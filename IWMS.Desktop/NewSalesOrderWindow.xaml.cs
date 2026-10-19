@@ -113,7 +113,7 @@ public partial class NewSalesOrderWindow : Window
     {
         ErrorText.Text = string.Empty;
         if (ProductBox.SelectedValue is not string productId ||
-            !_products.FirstOrDefault(p => p.Id == productId).IsValid())
+            !_products.Any(p => p.Id == productId))
         {
             ErrorText.Text = "Choose a product.";
             return;
