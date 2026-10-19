@@ -7,10 +7,10 @@ namespace IWMS.Desktop.Services;
 
 public sealed class ApiClient
 {
-    private HttpClient _http = new();
+    private HttpClient _http = new() { BaseAddress = new Uri("https://iwms-api-si63.onrender.com/") };
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public string BaseUrl { get; private set; } = "https://localhost:7001/";
+    public string BaseUrl { get; private set; } = "https://iwms-api-si63.onrender.com/";
     public bool IsSignedIn => _http.DefaultRequestHeaders.Authorization is not null;
     public string? CurrentUserName { get; private set; }
     public IReadOnlyList<string> CurrentUserRoles { get; private set; } = Array.Empty<string>();
