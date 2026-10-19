@@ -6,4 +6,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>Assets\IWMS.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="Assets\IWMS.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
