@@ -7,7 +7,7 @@ namespace IWMS.Desktop.Services;
 
 public sealed class ApiClient
 {
-    private readonly HttpClient _http = new();
+    private HttpClient _http = new();
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public string BaseUrl { get; private set; } = "https://localhost:7001/";
@@ -25,8 +25,15 @@ public sealed class ApiClient
         if (uri.Scheme != Uri.UriSchemeHttps && !isLocalDevelopment)
             throw new ArgumentException("For security, remote API servers must use HTTPS. HTTP is allowed only for localhost development.");
 
-        BaseUrl = uri.ToString().TrimEnd('/') + "/";
-        _http.BaseAddress = new Uri(BaseUrl);
+        var normalizedUrl = uri.ToString().TrimEnd('/') + "/";
+        if (_http.BaseAddress is null ||
+            !string.Equals(_http.BaseAddress.AbsoluteUri, normalizedUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            _http.Dispose();
+            _http = new HttpClient { BaseAddress = new Uri(normalizedUrl) };
+        }
+
+        BaseUrl = normalizedUrl;
         SignOut();
     }
 
