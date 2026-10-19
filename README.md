@@ -50,7 +50,7 @@ Database migrations are applied automatically by the API only in the Development
 
 ## Continuous integration and build artifacts
 
-GitHub Actions runs on pushes and pull requests targeting `master` or `main`. It restores, builds and tests the solution on Windows. After those checks pass, it publishes the API for Windows x64 as a self-contained single-file deployment and uploads the publish output as a workflow artifact.
+GitHub Actions runs on pushes and pull requests targeting `master` or `main`. It restores, builds and tests the solution on Windows. After those checks pass, it publishes both the API and WPF desktop client for Windows x64 as self-contained deployments and uploads separate workflow artifacts.
 
 Find the result under **Actions → Build and test → workflow run → Artifacts**. This artifact is the API deployment output, not a complete Windows desktop UI installer. A self-contained publish still needs valid configuration and a reachable PostgreSQL database to run.
 
@@ -65,7 +65,7 @@ Work in small, reviewable sections. Keep each commit focused, run the build and 
 5. Build the Windows desktop UI against the API, then package the UI and its required runtime/deployment files.
 6. Add CI coverage, setup instructions, architecture and entity-relationship diagrams, and release documentation.
 
-The Windows desktop application is a separate deliverable from the API publish. Choose and add a desktop framework (for example, WPF) as a dedicated project before claiming the desktop UI is packaged.
+The Windows desktop client lives in `IWMS.Desktop` (WPF). GitHub Actions publishes it separately as `IWMS-Desktop-win-x64`. The current client includes sign-in, a live KPI dashboard, API-backed read views for customers, sales orders, products and purchase orders, plus inventory CSV export. Operational create/edit forms and complete reservation, picking and dispatch screens remain in progress.
 
 ## Fulfillment and reporting endpoints
 
@@ -84,6 +84,8 @@ All endpoints below require a valid bearer token unless the authentication endpo
 - `GET /api/reports/dashboard` — stock value, low-stock products, open purchase orders, pending approvals and order totals.
 - `GET /api/reports/inventory-trend?days=30` — daily movement totals for the requested period.
 - `GET /api/reports/inventory.csv` — download an inventory CSV.
+
+The desktop client is a WPF app in `IWMS.Desktop`. It connects to the API URL entered at sign-in; configure the API's database and JWT settings before use. Download `IWMS-Desktop-win-x64` and `IWMS-Api-win-x64` from the same successful GitHub Actions run.
 
 Fulfillment operations that modify stock use a database transaction. Test these workflows against a non-production database before operational use. PDF reporting and the Windows desktop UI are still under development; the current CI publish artifact is the API, not a desktop installer.
 
