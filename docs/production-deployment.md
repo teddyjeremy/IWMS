@@ -22,6 +22,9 @@ Set these values in the API host's secret/configuration settings:
 - `Jwt__Issuer`: `IWMS` unless the API configuration is deliberately changed.
 - `Jwt__Audience`: `IWMS` unless the API configuration is deliberately changed.
 - `ASPNETCORE_ENVIRONMENT`: `Production`.
+- `BootstrapAdmin__Email`: the first real administrator's email, for initial provisioning only.
+- `BootstrapAdmin__Password`: a unique strong password for that account (10+ characters, letters and digits).
+- `BootstrapAdmin__Name`: optional display name for the first administrator.
 
 Never commit these values to Git or package them with the desktop app. Use the direct Neon connection only for EF migrations; use the pooled connection for normal API requests.
 
@@ -31,7 +34,7 @@ Review the existing EF Core migrations and run the migration command as a contro
 
 ### User provisioning
 
-The current API supports sign-in for existing active users. It does not expose public self-registration, which is intentional for an inventory system. Before launch, provide a controlled administrator onboarding process and create named users with appropriate roles. Do not distribute shared demo credentials or the development seed password. The development seeder uses local demo email addresses and should not be treated as production account provisioning.
+The current API supports sign-in for existing active users. It does not expose public self-registration, which is intentional for an inventory system. If no real administrator exists, the optional `BootstrapAdmin__Email`, `BootstrapAdmin__Password`, and `BootstrapAdmin__Name` host settings create one administrator account on API startup. Existing accounts are never overwritten; remove the bootstrap secrets after confirming sign-in. Then use the administrator-only **Users & access** desktop page to create named users with appropriate roles, reset passwords, and deactivate development accounts. Do not distribute shared demo credentials or the development seed password. The development seeder uses local demo email addresses and should not be treated as production account provisioning. The connected Neon database currently contains six `@iwms.local` development-seed accounts; review and deactivate them through the admin UI after creating and verifying a real administrator.
 
 ## Configure the Windows client
 
