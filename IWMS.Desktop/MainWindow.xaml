@@ -5,6 +5,7 @@
         Height="780" Width="1280" MinHeight="620" MinWidth="960"
         WindowStartupLocation="CenterScreen" Background="{StaticResource PageBackground}">
     <Grid>
+        <Grid x:Name="ShellRoot" Visibility="Collapsed">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="230"/>
             <ColumnDefinition Width="*"/>
@@ -16,8 +17,8 @@
                     <TextBlock Text="WAREHOUSE OPERATIONS" Foreground="#AFC6D4" FontSize="10" Margin="0,5,0,0"/>
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom">
-                    <TextBlock x:Name="ConnectionLabel" Text="Not connected" Foreground="#C8D6DF" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                    <Button Content="Connect / Sign in" Click="SignIn_Click" HorizontalContentAlignment="Left"/>
+                    <TextBlock x:Name="ConnectionLabel" Text="Signed in" Foreground="#C8D6DF" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <Button Content="Sign out" Click="SignOut_Click" HorizontalContentAlignment="Left"/>
                 </StackPanel>
                 <StackPanel>
                     <Button Content="Dashboard" Tag="Dashboard" Click="Navigate_Click" HorizontalContentAlignment="Left"/>
@@ -45,6 +46,39 @@
             </StackPanel>
             <ContentControl x:Name="PageContent" Grid.Row="1"/>
             <TextBlock x:Name="StatusText" Grid.Row="2" Text="Connect to the IWMS API to load live data." Foreground="{StaticResource MutedInk}" Margin="0,18,0,0"/>
+        </Grid>
+        </Grid>
+        <Grid x:Name="LoginRoot" Visibility="Visible" Background="#F2F5F8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.15*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Background="#122F43">
+                <StackPanel VerticalAlignment="Center" Margin="56">
+                    <Border Width="64" Height="64" Background="#2B6D8A" CornerRadius="14" HorizontalAlignment="Left" Margin="0,0,0,28">
+                        <TextBlock Text="W" Foreground="White" FontSize="34" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="IWMS" Foreground="White" FontSize="38" FontWeight="Bold"/>
+                    <TextBlock Text="INVENTORY &amp; WAREHOUSE MANAGEMENT" Foreground="#B8D0DE" FontSize="12" FontWeight="SemiBold" Margin="0,8,0,28"/>
+                    <TextBlock Text="A clearer view of every movement." Foreground="White" FontSize="25" FontWeight="SemiBold" TextWrapping="Wrap" MaxWidth="440"/>
+                    <TextBlock Text="Manage inventory, orders, transfers and warehouse operations from one secure workspace." Foreground="#D0DCE4" FontSize="15" TextWrapping="Wrap" MaxWidth="440" Margin="0,16,0,0" LineHeight="24"/>
+                </StackPanel>
+            </Border>
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel VerticalAlignment="Center" Margin="48" MaxWidth="430">
+                    <TextBlock Text="Welcome back" FontSize="30" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                    <TextBlock Text="Sign in to continue to your workspace." FontSize="14" Foreground="{StaticResource MutedInk}" Margin="0,8,0,28"/>
+                    <TextBlock Text="API server address" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                    <TextBox x:Name="LoginApiUrlBox" Text="https://localhost:7001/" MinWidth="0" ToolTip="Use your deployed HTTPS API address in production."/>
+                    <TextBlock Text="Work email" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                    <TextBox x:Name="LoginEmailBox" MinWidth="0" ToolTip="Enter the email associated with your IWMS account."/>
+                    <TextBlock Text="Password" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                    <PasswordBox x:Name="LoginPasswordBox" Padding="9,7" Margin="0,4,0,12" ToolTip="Enter your IWMS password."/>
+                    <TextBlock x:Name="LoginErrorText" Foreground="#B42318" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <Button x:Name="LoginButton" Content="Sign in securely" Click="SignIn_Click" IsDefault="True" Background="#174A68" Foreground="White" Padding="14,12" HorizontalContentAlignment="Center" FontWeight="SemiBold"/>
+                    <TextBlock Text="Access is restricted to authorized IWMS users." FontSize="12" Foreground="{StaticResource MutedInk}" TextWrapping="Wrap" Margin="0,18,0,0"/>
+                </StackPanel>
+            </ScrollViewer>
         </Grid>
     </Grid>
 </Window>
