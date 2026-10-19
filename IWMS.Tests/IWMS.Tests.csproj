@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\IWMS.Domain\IWMS.Domain.csproj" />
+    <ProjectReference Include="..\IWMS.Api\IWMS.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>
