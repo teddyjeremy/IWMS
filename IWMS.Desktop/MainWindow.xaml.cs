@@ -281,7 +281,14 @@ public partial class MainWindow : Window
 
         try
         {
-            StatusText.Text = $"Loading {page.ToLowerInvariant()}...";
+            StatusText.Text = $"Loading {page.ToLowerInvariant()}…";
+            PageContent.Content = new TextBlock
+            {
+                Text = $"Loading {page.ToLowerInvariant()}…",
+                FontSize = 15,
+                Foreground = System.Windows.Media.Brushes.Gray,
+                Margin = new Thickness(0, 8, 0, 0)
+            };
             var json = await _api.GetJsonAsync(endpoint);
             var dataGrid = CreateDataGrid(json);
             if (page is "Customers" or "Sales orders" or "Inventory" or "Fulfillment" or "Stock transfers" or "Stock counts" or "Returns" or "Users")
@@ -326,7 +333,8 @@ public partial class MainWindow : Window
                             try
                             {
                                 var detail = await _api.GetJsonAsync($"api/sales-orders/{orderId.Value}");
-                                if (!detail.TryGetProperty("status", out var status) || !string.Equals(status.GetString(), "Draft", StringComparison.OrdinalIgnoreCase))
+                                if (!detail.TryGetProperty("status", out var status) ||
+                                    !string.Equals(status.GetString(), "Draft", StringComparison.OrdinalIgnoreCase))
                                 {
                                     StatusText.Text = "Only draft sales orders can be edited.";
                                     return;
@@ -539,8 +547,24 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            PageContent.Content = new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap };
-            StatusText.Text = "Could not load data.";
+            PageContent.Content = new Border
+            {
+                Background = System.Windows.Media.Brushes.White,
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(238, 190, 190)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(18),
+                Child = new StackPanel
+                {
+                    Children =
+                    {
+                        new TextBlock { Text = "We couldn’t load this workspace", FontSize = 17, FontWeight = FontWeights.SemiBold, Foreground = System.Windows.Media.Brushes.DarkRed, Margin = new Thickness(0, 0, 0, 8) },
+                        new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap, Foreground = System.Windows.Media.Brushes.DimGray },
+                        new TextBlock { Text = "Check your connection and account permissions, then select the workspace again to retry.", TextWrapping = TextWrapping.Wrap, Foreground = System.Windows.Media.Brushes.Gray, Margin = new Thickness(0, 10, 0, 0) }
+                    }
+                }
+            };
+            StatusText.Text = "Workspace failed to load. You can retry without restarting IWMS.";
         }
     }
 
@@ -733,23 +757,40 @@ public partial class MainWindow : Window
         try
         {
             if (!Guid.TryParse(Prompt("New transfer", "Source warehouse ID (GUID):"), out var sourceWarehouseId) ||
-                !Guid.TryParse(Prompt("New transfer", "Destination warehouse ID (GUID):"), out var destinationWarehouseId) ||
-                !Guid.TryParse(Prompt("New transfer", "Product ID (GUID):"), out var productId) ||
-                !Guid.TryParse(Prompt("New transfer", "Source storage location ID (GUID):"), out var fromLocationId) ||
-                !Guid.TryParse(Prompt("New transfer", "Destination storage location ID (GUID):"), out var toLocationId))
-            { StatusText.Text = "Transfer creation cancelled or an ID was invalid."; return; }
-            if (!decimal.TryParse(Prompt("New transfer", "Quantity to transfer:"), NumberStyles.Number, CultureInfo.InvariantCulture, out var quantity) || quantity <= 0)
-            { StatusText.Text = "Enter a positive quantity using invariant decimal format."; return; }
-            var reason = Prompt("New transfer", "Reason for transfer:");
+                !Guid.TryParse(Prompt("New transfer", "Destination warehouse ID (GUID):"), out var destinationWarehouseId))
+            { StatusText.Text = "Transfer creation cancelled or a warehouse ID was invalid."; return; }
+            if (sourceWarehouseId == destinationWarehouseId)
+            { StatusText.Text = "Source and destination warehouses must be different."; return; }
+
+            var reason = Prompt("New transfer", "Reason for transfer:") ?? string.Empty;
+            var lines = new List<object>();
+            var lineNumber = 1;
+            while (true)
+            {
+                if (!Guid.TryParse(Prompt("Transfer line", $"Line {lineNumber} — Product ID (GUID):"), out var productId) ||
+                    !Guid.TryParse(Prompt("Transfer line", $"Line {lineNumber} — Source storage location ID (GUID):"), out var fromLocationId) ||
+                    !Guid.TryParse(Prompt("Transfer line", $"Line {lineNumber} — Destination storage location ID (GUID):"), out var toLocationId))
+                { StatusText.Text = $"Transfer cancelled: line {lineNumber} has an invalid ID."; return; }
+                if (!decimal.TryParse(Prompt("Transfer line", $"Line {lineNumber} — Quantity:"), NumberStyles.Number, CultureInfo.InvariantCulture, out var quantity) || quantity <= 0)
+                { StatusText.Text = "Each transfer line needs a positive quantity (use a dot for decimals)."; return; }
+                if (fromLocationId == toLocationId)
+                { StatusText.Text = "A transfer line must use different source and destination locations."; return; }
+
+                lines.Add(new { productId, fromStorageLocationId = fromLocationId, toStorageLocationId = toLocationId, quantity });
+                if (lines.Count >= 50) break;
+                var addAnother = Prompt("Transfer lines", $"Added line {lineNumber}. Add another line? Enter yes or no:");
+                if (!string.Equals(addAnother, "yes", StringComparison.OrdinalIgnoreCase)) break;
+                lineNumber++;
+            }
+
             await _api.PostJsonAsync("api/stock-transfers", new
             {
-                sourceWarehouseId, destinationWarehouseId, reason,
-                lines = new[] { new { productId, fromStorageLocationId = fromLocationId, toStorageLocationId = toLocationId, quantity } }
+                sourceWarehouseId, destinationWarehouseId, reason, lines
             });
             await LoadWorkspaceAsync("Stock transfers");
-            StatusText.Text = "Transfer request submitted for approval.";
+            StatusText.Text = $"Transfer request submitted with {lines.Count} line(s) for approval.";
         }
-        catch (Exception ex) { StatusText.Text = ex.Message; }
+        catch (Exception ex) { StatusText.Text = $"Transfer could not be created: {ex.Message}"; }
     }
 
     private async Task RecordSelectedStockCountAsync(DataGrid grid)
@@ -800,39 +841,57 @@ public partial class MainWindow : Window
     {
         try
         {
-            if (!Guid.TryParse(Prompt(customerReturn ? "Customer return" : "Supplier return", customerReturn ? "Sales order ID (GUID):" : "Goods receipt ID (GUID):"), out var sourceId) ||
-                !Guid.TryParse(Prompt("Return", "Product ID (GUID):"), out var productId))
-            { StatusText.Text = "Return creation cancelled or an ID was invalid."; return; }
-            if (!decimal.TryParse(Prompt("Return", "Quantity:"), NumberStyles.Number, CultureInfo.InvariantCulture, out var quantity) || quantity <= 0)
-            { StatusText.Text = "Enter a positive quantity using invariant decimal format."; return; }
-            var reason = Prompt("Return", "Reason for return:") ?? string.Empty;
-            var condition = Prompt("Return", "Product condition:") ?? string.Empty;
-            var disposition = customerReturn ? 1 : 4;
-            if (customerReturn)
+            var title = customerReturn ? "Customer return" : "Supplier return";
+            if (!Guid.TryParse(Prompt(title, customerReturn ? "Sales order ID (GUID):" : "Goods receipt ID (GUID):"), out var sourceId))
+            { StatusText.Text = "Return creation cancelled or the source document ID was invalid."; return; }
+
+            var reason = Prompt(title, "Reason for return:") ?? string.Empty;
+            var notes = Prompt(title, "Document notes (optional):") ?? string.Empty;
+            var lines = new List<object>();
+            var lineNumber = 1;
+            while (true)
             {
-                var choice = Prompt("Customer return disposition", "1 = Restock, 2 = Quarantine, 3 = Scrap:");
-                if (!int.TryParse(choice, out disposition) || disposition is < 1 or > 3)
-                { StatusText.Text = "Choose disposition 1, 2 or 3."; return; }
+                if (!Guid.TryParse(Prompt("Return line", $"Line {lineNumber} — Product ID (GUID):"), out var productId))
+                { StatusText.Text = $"Return cancelled: line {lineNumber} has an invalid product ID."; return; }
+                if (!decimal.TryParse(Prompt("Return line", $"Line {lineNumber} — Quantity:"), NumberStyles.Number, CultureInfo.InvariantCulture, out var quantity) || quantity <= 0)
+                { StatusText.Text = "Each return line needs a positive quantity (use a dot for decimals)."; return; }
+                var condition = Prompt("Return line", $"Line {lineNumber} — Product condition:") ?? string.Empty;
+                var disposition = customerReturn ? 1 : 4;
+                if (customerReturn)
+                {
+                    var choice = Prompt("Return disposition", "1 = Restock, 2 = Quarantine, 3 = Scrap:");
+                    if (!int.TryParse(choice, out disposition) || disposition is < 1 or > 3)
+                    { StatusText.Text = "Choose disposition 1, 2 or 3."; return; }
+                }
+
+                Guid? storageLocationId = null;
+                if (!customerReturn || disposition == 1)
+                {
+                    if (!Guid.TryParse(Prompt("Return line", $"Line {lineNumber} — Storage location ID (GUID):"), out var locationId))
+                    { StatusText.Text = "A valid storage location ID is required for this return disposition."; return; }
+                    storageLocationId = locationId;
+                }
+
+                lines.Add(new { productId, quantity, reason, condition, disposition, storageLocationId });
+                if (lines.Count >= 50) break;
+                var addAnother = Prompt("Return lines", $"Added line {lineNumber}. Add another line? Enter yes or no:");
+                if (!string.Equals(addAnother, "yes", StringComparison.OrdinalIgnoreCase)) break;
+                lineNumber++;
             }
-            Guid? storageLocationId = null;
-            if (!customerReturn || disposition == 1)
-            {
-                if (!Guid.TryParse(Prompt("Return", "Storage location ID (GUID):"), out var locationId))
-                { StatusText.Text = "A valid storage location ID is required for this disposition."; return; }
-                storageLocationId = locationId;
-            }
+
             Guid? salesOrderId = customerReturn ? sourceId : null;
             Guid? goodsReceiptId = customerReturn ? null : sourceId;
             await _api.PostJsonAsync("api/returns", new
             {
-                type = customerReturn ? 1 : 2, salesOrderId, goodsReceiptId, notes = string.Empty,
-                lines = new[] { new { productId, quantity, reason, condition, disposition, storageLocationId } }
+                type = customerReturn ? 1 : 2, salesOrderId, goodsReceiptId, notes,
+                lines
             });
             await LoadWorkspaceAsync("Returns");
-            StatusText.Text = "Return recorded.";
+            StatusText.Text = $"{title} recorded with {lines.Count} line(s).";
         }
-        catch (Exception ex) { StatusText.Text = ex.Message; }
+        catch (Exception ex) { StatusText.Text = $"Return could not be recorded: {ex.Message}"; }
     }
+
     private async Task RunSelectedTransferActionAsync(DataGrid grid, string action)
     {
         var id = GetSelectedGuid(grid);
