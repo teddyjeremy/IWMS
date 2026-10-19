@@ -284,7 +284,7 @@ public partial class MainWindow : Window
             StatusText.Text = $"Loading {page.ToLowerInvariant()}...";
             var json = await _api.GetJsonAsync(endpoint);
             var dataGrid = CreateDataGrid(json);
-            if (page is "Customers" or "Sales orders" or "Fulfillment" or "Stock transfers" or "Stock counts" or "Returns" or "Users")
+            if (page is "Customers" or "Sales orders" or "Inventory" or "Fulfillment" or "Stock transfers" or "Stock counts" or "Returns" or "Users")
             {
                 var workspace = new DockPanel();
                 var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
@@ -356,6 +356,29 @@ public partial class MainWindow : Window
                         cancelOrderButton.Click += async (_, _) => await RunSelectedFulfillmentActionAsync(dataGrid, "cancel-order");
                         toolbar.Children.Add(confirmButton);
                         toolbar.Children.Add(cancelOrderButton);
+                    }
+                }
+                else if (page == "Inventory")
+                {
+                    if (_api.IsInRole("Administrator") || _api.IsInRole("Warehouse Manager"))
+                    {
+                        var editProductButton = new Button { Content = "Edit selected product" };
+                        editProductButton.Click += async (_, _) =>
+                        {
+                            var productId = GetSelectedGuid(dataGrid);
+                            if (productId is null)
+                            {
+                                StatusText.Text = "Select a product first.";
+                                return;
+                            }
+                            var dialog = new EditProductWindow(_api, productId.Value) { Owner = this };
+                            if (dialog.ShowDialog() == true)
+                            {
+                                StatusText.Text = "Product details saved.";
+                                await LoadWorkspaceAsync("Inventory");
+                            }
+                        };
+                        toolbar.Children.Add(editProductButton);
                     }
                 }
                 else if (page == "Users")
