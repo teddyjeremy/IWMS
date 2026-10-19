@@ -1,0 +1,62 @@
+name: Build and test
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore IWMS.slnx
+
+      - name: Build
+        run: dotnet build IWMS.slnx --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test IWMS.slnx --configuration Release --no-build --logger "trx;LogFileName=tests.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/TestResults/**/*.trx'
+          if-no-files-found: ignore
+
+  publish-api:
+    runs-on: windows-latest
+    needs: build-and-test
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish Windows x64 API
+        run: dotnet publish IWMS.Api/IWMS.Api.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output ./publish/IWMS.Api
+
+      - name: Upload Windows API build
+        uses: actions/upload-artifact@v4
+        with:
+          name: IWMS-Api-win-x64
+          path: ./publish/IWMS.Api/
+          if-no-files-found: error
